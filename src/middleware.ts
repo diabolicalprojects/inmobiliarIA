@@ -1,6 +1,7 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { auth } from "@/lib/auth";
+import NextAuth from "next-auth";
+import { authConfig } from "@/lib/auth.config";
+
+export const { auth: middleware } = NextAuth(authConfig);
 
 const publicPaths = [
   "/login",
@@ -9,12 +10,12 @@ const publicPaths = [
   "/api/v1/webhooks",
 ];
 
-export default auth((req) => {
+export default middleware((req) => {
   const { pathname } = req.nextUrl;
 
   // Allow public paths
   if (publicPaths.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
+    return;
   }
 
   // Allow static assets and favicon
@@ -23,18 +24,16 @@ export default auth((req) => {
     pathname.startsWith("/favicon") ||
     pathname.includes(".")
   ) {
-    return NextResponse.next();
+    return;
   }
 
   // Check auth for dashboard routes
   if (!req.auth) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
-    return NextResponse.redirect(loginUrl);
+    return Response.redirect(loginUrl);
   }
-
-  return NextResponse.next();
-}) as (req: NextRequest) => Promise<NextResponse>;
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
