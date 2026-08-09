@@ -42,6 +42,14 @@ export async function GET(req: NextRequest) {
             updatedAt: new Date(),
           },
         });
+      } else if (openwaStatus.status === "unknown") {
+        waSession = await prisma.whatsappSession.update({
+          where: { id: waSession.id },
+          data: {
+            status: "DISCONNECTED",
+            updatedAt: new Date(),
+          },
+        });
       }
     } catch (error) {
       console.error("[WhatsApp Status] Error checking OpenWA status", error);
