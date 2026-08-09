@@ -14,9 +14,36 @@ const navItems = [
   { href: "/dashboard/settings", icon: "⚙️", label: "Configuración" },
 ];
 
+import { useState, useEffect } from "react";
+
 function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Check local storage or system preference
+    const savedTheme = localStorage.getItem("theme");
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    if (savedTheme === "dark" || (!savedTheme && prefersDark)) {
+      setIsDark(true);
+      document.documentElement.classList.add("dark");
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    setIsDark((prev) => {
+      const next = !prev;
+      if (next) {
+        document.documentElement.classList.add("dark");
+        localStorage.setItem("theme", "dark");
+      } else {
+        document.documentElement.classList.remove("dark");
+        localStorage.setItem("theme", "light");
+      }
+      return next;
+    });
+  };
 
   return (
     <aside className="sidebar">
@@ -51,7 +78,28 @@ function Sidebar() {
         ))}
       </nav>
 
-      <div className="sidebar-footer">
+      <div className="sidebar-footer" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <button 
+          onClick={toggleTheme}
+          style={{
+            background: "var(--bg-tertiary)",
+            border: "1px solid var(--border-default)",
+            padding: "8px 12px",
+            borderRadius: "8px",
+            color: "var(--text-primary)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontSize: "0.8125rem",
+            fontWeight: "500",
+            width: "100%"
+          }}
+        >
+          <span>Modo {isDark ? "Claro" : "Oscuro"}</span>
+          <span style={{ fontSize: "1rem" }}>{isDark ? "☀️" : "🌙"}</span>
+        </button>
+
         <div className="sidebar-user" onClick={() => signOut({ callbackUrl: "/login" })}>
           <div className="user-avatar">
             {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}

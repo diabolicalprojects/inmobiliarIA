@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { getOpenWAClient } from "@/lib/openwa";
 
 // GET /api/v1/whatsapp/status — Get session status for the agency
 export async function GET(req: NextRequest) {
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const sessionId = req.nextUrl.searchParams.get("sessionId");
 
-  const waSession = await prisma.whatsappSession.findFirst({
+  let waSession = await prisma.whatsappSession.findFirst({
     where: {
       agencyId: session.user.agencyId,
       ...(sessionId ? { id: sessionId } : {}),
@@ -24,6 +25,27 @@ export async function GET(req: NextRequest) {
       status: "NO_SESSION",
       message: "No hay sesión de WhatsApp configurada",
     });
+  }
+
+  // Actively check WAHA if we think it's still pending
+  if (waSession.status === "PENDING" && waSession.openwaSessionName) {
+    try {
+      const openwa = getOpenWAClient();
+      const openwaStatus = await openwa.getSessionStatus(waSession.openwaSessionName);
+      
+      if (openwaStatus.status === "ready" || openwaStatus.status === "WORKING") {
+        waSession = await prisma.whatsappSession.update({
+          where: { id: waSession.id },
+          data: {
+            status: "CONNECTED",
+            connectedAt: new Date(),
+            updatedAt: new Date(),
+          },
+        });
+      }
+    } catch (error) {
+      console.error("[WhatsApp Status] Error checking OpenWA status", error);
+    }
   }
 
   return NextResponse.json({

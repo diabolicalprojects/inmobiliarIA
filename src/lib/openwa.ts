@@ -94,9 +94,20 @@ export class OpenWAClient {
         sessionId = existing.id;
         status = existing.status;
       } else {
+        const baseUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || "https://agentesia.diabolicalservices.tech";
         const created = await this.request<any>("/api/sessions", {
           method: "POST",
-          body: JSON.stringify({ name: sessionName }),
+          body: JSON.stringify({ 
+            name: sessionName,
+            config: {
+              webhooks: [
+                {
+                  url: `${baseUrl}/api/v1/webhooks/openwa/incoming`,
+                  events: ["message", "message.any"]
+                }
+              ]
+            }
+          }),
         });
         sessionId = created.id;
         status = created.status;
