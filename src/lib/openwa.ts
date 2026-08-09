@@ -1,7 +1,7 @@
 /**
- * OpenWA HTTP Client
+ * OpenWA / WAHA HTTP Client
  *
- * All communication with the OpenWA microservice goes through this class.
+ * All communication with the WhatsApp microservice (WAHA) goes through this class.
  * It handles session management, message sending, and status polling.
  */
 
@@ -17,7 +17,7 @@ interface StartSessionResponse {
 }
 
 interface SendTextPayload {
-  sessionId: string;
+  sessionId: string; // Used as session name in WAHA
   to: string;
   content: string;
 }
@@ -40,18 +40,17 @@ export class OpenWAClient {
 
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
-  ): Promise<T> {
+    options: RequestInit = {},
+    raw: boolean = false
+  ): Promise<T | Response> {
     const url = `${this.baseUrl}${endpoint}`;
-
-    console.log(`[OpenWA] ${options.method || "GET"} ${url}`);
 
     try {
       const response = await fetch(url, {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          api_key: this.apiKey,
+          "Authorization": `Bearer ${this.apiKey}`,
           ...options.headers,
         },
       });
@@ -59,13 +58,14 @@ export class OpenWAClient {
       if (!response.ok) {
         const errorBody = await response.text();
         console.error(
-          `[OpenWA] Error ${response.status}: ${errorBody}`
+          `[OpenWA] Error ${response.status}: ${errorBody} on ${url}`
         );
         throw new Error(
           `OpenWA API error ${response.status}: ${response.statusText}`
         );
       }
 
+      if (raw) return response;
       const data = await response.json();
       return data as T;
     } catch (error) {
@@ -82,58 +82,108 @@ export class OpenWAClient {
   /**
    * Start a new WhatsApp session. Returns the QR code as base64.
    */
-  async startSession(sessionId: string): Promise<StartSessionResponse> {
-    return this.request<StartSessionResponse>("/session/start", {
-      method: "POST",
-      body: JSON.stringify({ sessionId }),
-    });
+  async startSession(sessionName: string): Promise<StartSessionResponse> {
+    // 1. Get or create session
+    let sessionId = "";
+    let status = "";
+    try {
+      const sessions = await this.request<any[]>("/api/sessions");
+      const existing = sessions.find((s: any) => s.name === sessionName);
+      if (existing) {
+        sessionId = existing.id;
+        status = existing.status;
+      } else {
+        const created = await this.request<any>("/api/sessions", {
+          method: "POST",
+          body: JSON.stringify({ name: sessionName }),
+        });
+        sessionId = created.id;
+        status = created.status;
+      }
+    } catch (e) {
+      console.error("[OpenWA] Failed to get/create session:", e);
+      throw e;
+    }
+
+    // 2. Start the engine
+    try {
+      await this.request(`/api/sessions/${sessionId}/start`, { method: "POST" });
+    } catch (e) {
+      console.error("[OpenWA] Failed to start engine:", e);
+    }
+    
+    // Give WAHA a moment to initialize the browser and generate the QR code
+    await new Promise(r => setTimeout(r, 2000));
+
+    // 3. Attempt to fetch QR code
+    let qrCodeBase64: string | undefined;
+    try {
+      const qrRes = await this.request<any>(`/api/sessions/${sessionId}/qr`, {
+        headers: { Accept: "application/json" }
+      });
+      if (qrRes && qrRes.qrCode) {
+        qrCodeBase64 = qrRes.qrCode;
+      }
+    } catch (e) {
+      console.log(`[OpenWA] No QR code available right now for ${sessionId}`);
+    }
+
+    // Refresh status
+    try {
+      const sessions = await this.request<any[]>("/api/sessions");
+      const current = sessions.find((s: any) => s.id === sessionId);
+      if (current) status = current.status;
+    } catch (e) {}
+
+    return {
+      qrCodeBase64,
+      sessionId,
+      status,
+    };
   }
 
   /**
    * Send a text message to a WhatsApp number.
    * @param to - Phone number in format "5215555555555@c.us"
    */
-  async sendText(sessionId: string, to: string, content: string): Promise<void> {
-    const payload: SendTextPayload = {
-      sessionId,
-      to: to.includes("@c.us") ? to : `${to}@c.us`,
-      content,
-    };
+  async sendText(sessionName: string, to: string, content: string): Promise<void> {
+    const chatId = to.includes("@c.us") || to.includes("@g.us") ? to : `${to}@c.us`;
 
-    await this.request("/chat/sendText", {
+    await this.request("/api/sendText", {
       method: "POST",
       body: JSON.stringify({
-        sessionId: payload.sessionId,
-        args: {
-          to: payload.to,
-          content: payload.content,
-        },
+        session: sessionName,
+        chatId: chatId,
+        text: content,
       }),
     });
 
-    console.log(`[OpenWA] Message sent to ${to} via session ${sessionId}`);
+    console.log(`[OpenWA] Message sent to ${chatId} via session ${sessionName}`);
   }
 
   /**
    * Check the status of a session.
    */
   async getSessionStatus(
-    sessionId: string
+    sessionName: string
   ): Promise<{ status: string }> {
-    return this.request<{ status: string }>(
-      `/session/status?sessionId=${encodeURIComponent(sessionId)}`
-    );
+    const sessions = await this.request<any[]>("/api/sessions");
+    const existing = sessions.find((s: any) => s.name === sessionName);
+    return { status: existing ? existing.status : "unknown" };
   }
 
   /**
    * Close and remove a session.
    */
-  async closeSession(sessionId: string): Promise<void> {
-    await this.request("/session/close", {
+  async closeSession(sessionName: string): Promise<void> {
+    const sessions = await this.request<any[]>("/api/sessions");
+    const existing = sessions.find((s: any) => s.name === sessionName);
+    if (!existing) return;
+
+    await this.request(`/api/sessions/${existing.id}/stop`, {
       method: "POST",
-      body: JSON.stringify({ sessionId }),
     });
-    console.log(`[OpenWA] Session ${sessionId} closed`);
+    console.log(`[OpenWA] Session ${sessionName} stopped`);
   }
 }
 
