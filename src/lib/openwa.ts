@@ -42,7 +42,7 @@ export class OpenWAClient {
     endpoint: string,
     options: RequestInit = {},
     raw: boolean = false
-  ): Promise<T | Response> {
+  ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
 
     try {
@@ -65,9 +65,10 @@ export class OpenWAClient {
         );
       }
 
-      if (raw) return response;
-      const data = await response.json();
-      return data as T;
+      if (raw) return response as unknown as T;
+      const text = await response.text();
+      if (!text) return {} as T;
+      return JSON.parse(text) as T;
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("OpenWA API error")) {
         throw error;
