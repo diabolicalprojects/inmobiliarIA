@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getOpenWAClient } from "@/lib/openwa";
 import logger from "@/lib/utils/logger";
+import crypto from "crypto";
 
 // POST /api/v1/whatsapp/connect — Start a session and get QR code
 export async function POST() {
