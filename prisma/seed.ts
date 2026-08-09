@@ -6,6 +6,15 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...");
 
+  const existingAdmin = await prisma.user.findUnique({
+    where: { email: "admin@inmobiliarialuna.com" }
+  });
+
+  if (existingAdmin) {
+    console.log("✅ Database already seeded. Skipping...");
+    return;
+  }
+
   // ─── Create Agencies ──────────────────────────────
 
   const realEstateAgency = await prisma.agency.create({
