@@ -24,5 +24,9 @@ ENV NODE_ENV=production
 ENV PORT=3000
 EXPOSE 3000
 
+# Copy startup script
+COPY start.sh ./
+RUN chmod +x start.sh
+
 # Run migrations, seed, and start Next.js
-CMD npx prisma db push --accept-data-loss && npx tsx prisma/seed.ts && npm run start
+CMD ["./start.sh"]
