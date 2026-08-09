@@ -1,10 +1,17 @@
 async function run() {
-  const res = await fetch(`https://openwa.diabolicalservices.tech/swagger.json`);
-  const json = await res.json();
-  const paths = Object.keys(json.paths).filter(p => p.includes("sendText") || p.includes("message"));
-  for (const p of paths) {
-    console.log(p);
-  }
+  const url = "https://openwa.diabolicalservices.tech/api/sessions";
+  console.log("Fetching:", url);
+  
+  const res = await fetch(url, {
+    headers: {
+      "Accept": "application/json",
+      "Authorization": "Bearer owa_k1_e745515e6ed2aff43f97b3325fae33f067064493911b597e09436033736e9a8e"
+    }
+  });
+  
+  console.log("Status:", res.status);
+  console.log("Headers:", res.headers);
+  const text = await res.text();
+  console.log("Body preview:", text.substring(0, 200));
 }
-
 run();

@@ -12,7 +12,7 @@ export async function POST() {
   }
 
   const agencyId = session.user.agencyId;
-  const sessionName = `agency_${agencyId}`;
+  const sessionName = `agency-${agencyId}`;
 
   try {
     // Check if there's already an active session
