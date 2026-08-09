@@ -87,6 +87,8 @@ export class OpenWAClient {
     // 1. Get or create session
     let sessionId = "";
     let status = "";
+    const baseUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || "https://agentesia.diabolicalservices.tech";
+    
     try {
       const sessions = await this.request<any[]>("/api/sessions");
       const existing = sessions.find((s: any) => s.name === sessionName);
@@ -94,23 +96,30 @@ export class OpenWAClient {
         sessionId = existing.id;
         status = existing.status;
       } else {
-        const baseUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || "https://agentesia.diabolicalservices.tech";
         const created = await this.request<any>("/api/sessions", {
           method: "POST",
-          body: JSON.stringify({ 
-            name: sessionName,
-            config: {
-              webhooks: [
-                {
-                  url: `${baseUrl}/api/v1/webhooks/openwa/incoming`,
-                  events: ["message", "message.any"]
-                }
-              ]
-            }
-          }),
+          body: JSON.stringify({ name: sessionName }),
         });
         sessionId = created.id;
         status = created.status;
+      }
+      
+      // FORCED WEBHOOK CONFIGURATION via PUT /api/sessions/{session}/config
+      try {
+        await this.request(`/api/sessions/${sessionName}/config`, {
+          method: "PUT",
+          body: JSON.stringify({
+            webhooks: [
+              {
+                url: `${baseUrl}/api/v1/webhooks/openwa/incoming`,
+                events: ["message", "message.any"]
+              }
+            ]
+          })
+        });
+        console.log(`[OpenWA] Webhook configured for session ${sessionName}`);
+      } catch (e) {
+        console.error(`[OpenWA] Failed to set webhooks for session ${sessionName}:`, e);
       }
     } catch (e) {
       console.error("[OpenWA] Failed to get/create session:", e);

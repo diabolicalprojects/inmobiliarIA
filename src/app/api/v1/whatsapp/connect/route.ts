@@ -12,34 +12,19 @@ export async function POST() {
   }
 
   const agencyId = session.user.agencyId;
-  const sessionName = `agency-${agencyId}`;
+  const sessionName = `agency-${agencyId}-${crypto.randomUUID().substring(0, 8)}`;
 
   try {
-    // Check if there's already an active session
-    const existing = await prisma.whatsappSession.findFirst({
-      where: { agencyId, status: "CONNECTED" },
-    });
-
-    if (existing) {
-      return NextResponse.json(
-        { error: "Ya hay una sesión activa", session: existing },
-        { status: 409 }
-      );
-    }
-
+    // We no longer block if there's an active session, since we support multiple.
+    // However, if there are pending sessions, it's fine, we just create a new one.
+    
     // Call OpenWA to start session
     const openwa = getOpenWAClient();
     const result = await openwa.startSession(sessionName);
 
-    // Upsert the session record
-    const waSession = await prisma.whatsappSession.upsert({
-      where: { openwaSessionName: sessionName },
-      update: {
-        status: "PENDING",
-        qrCodeBase64: result.qrCodeBase64 || null,
-        updatedAt: new Date(),
-      },
-      create: {
+    // Create a new session record
+    const waSession = await prisma.whatsappSession.create({
+      data: {
         agencyId,
         openwaSessionName: sessionName,
         status: "PENDING",

@@ -5,7 +5,7 @@ import { getOpenWAClient } from "@/lib/openwa";
 import logger from "@/lib/utils/logger";
 
 // POST /api/v1/whatsapp/disconnect — Close the active session
-export async function POST() {
+export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.agencyId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -14,9 +14,15 @@ export async function POST() {
   const agencyId = session.user.agencyId;
 
   try {
+    const body = await req.json();
+    const { sessionId } = body;
+
+    if (!sessionId) {
+      return NextResponse.json({ error: "Falta sessionId" }, { status: 400 });
+    }
+
     const waSession = await prisma.whatsappSession.findFirst({
-      where: { agencyId },
-      orderBy: { updatedAt: "desc" },
+      where: { id: sessionId, agencyId },
     });
 
     if (!waSession) {
