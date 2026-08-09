@@ -13,7 +13,7 @@ export async function POST() {
   }
 
   const agencyId = session.user.agencyId;
-  const sessionName = `agency-${agencyId}-${crypto.randomUUID().substring(0, 8)}`;
+  const sessionName = `ag-${crypto.randomUUID()}`;
 
   try {
     // We no longer block if there's an active session, since we support multiple.
@@ -51,7 +51,7 @@ export async function POST() {
     );
 
     return NextResponse.json(
-      { error: "Error al iniciar sesión de WhatsApp" },
+      { error: "Error al iniciar sesión de WhatsApp", details: error instanceof Error ? error.message : String(error) },
       { status: 500 }
     );
   }
