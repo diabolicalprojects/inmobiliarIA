@@ -98,28 +98,21 @@ export class OpenWAClient {
       } else {
         const created = await this.request<any>("/api/sessions", {
           method: "POST",
-          body: JSON.stringify({ name: sessionName }),
+          body: JSON.stringify({ 
+            name: sessionName,
+            config: {
+              webhooks: [
+                {
+                  url: `${baseUrl}/api/v1/webhooks/openwa/incoming`,
+                  events: ["message", "message.any"]
+                }
+              ]
+            }
+          }),
         });
         sessionId = created.id;
         status = created.status;
-      }
-      
-      // FORCED WEBHOOK CONFIGURATION via PUT /api/sessions/{session}/config
-      try {
-        await this.request(`/api/sessions/${sessionName}/config`, {
-          method: "PUT",
-          body: JSON.stringify({
-            webhooks: [
-              {
-                url: `${baseUrl}/api/v1/webhooks/openwa/incoming`,
-                events: ["message", "message.any"]
-              }
-            ]
-          })
-        });
         console.log(`[OpenWA] Webhook configured for session ${sessionName}`);
-      } catch (e) {
-        console.error(`[OpenWA] Failed to set webhooks for session ${sessionName}:`, e);
       }
     } catch (e) {
       console.error("[OpenWA] Failed to get/create session:", e);

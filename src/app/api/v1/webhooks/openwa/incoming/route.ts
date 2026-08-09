@@ -30,7 +30,8 @@ export async function POST(req: Request) {
 
     // Extract data from OpenWA payload
     const sessionId = payload.sessionId || payload.session;
-    const messageData = payload.data || payload;
+    // WAHA puts the actual message in `payload.payload` for `message` events
+    const messageData = payload.payload || payload.data || payload;
     const fromNumber = messageData.from || messageData.sender?.id;
     const messageBody = messageData.body || messageData.text || messageData.content;
     const isGroupMessage = fromNumber?.includes("@g.us");
@@ -81,7 +82,7 @@ export async function POST(req: Request) {
       create: {
         agencyId: agency.id,
         phoneNumber,
-        name: messageData.sender?.pushname || messageData.notifyName || null,
+        name: messageData._data?.notifyName || messageData.sender?.pushname || messageData.notifyName || "Lead de WhatsApp",
       },
     });
 
