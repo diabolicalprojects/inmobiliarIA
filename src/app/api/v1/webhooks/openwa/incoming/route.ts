@@ -23,14 +23,17 @@ export async function POST(req: Request) {
   try {
     const payload = await req.json();
 
-    // FORCE LOG THE RAW PAYLOAD as a dummy lead just so we can see it in production!
+    // FORCE LOG THE RAW PAYLOAD as a dummy message so we can see it in production
     try {
-      await prisma.lead.upsert({
-        where: { agencyId_phoneNumber: { agencyId: "DEBUG_WEBHOOK", phoneNumber: String(Date.now()) } },
-        create: { agencyId: "DEBUG_WEBHOOK", phoneNumber: String(Date.now()), name: JSON.stringify(payload).substring(0, 190) },
-        update: {},
+      await prisma.messageHistory.create({
+        data: {
+          leadId: "abc20580-e653-4275-8295-cfb5cb248572", // The ID of the test lead
+          role: "USER",
+          content: JSON.stringify(payload).substring(0, 1000),
+        },
       });
     } catch(e) {}
+
 
     logger.info("Webhook received", "OpenWA-Webhook", {
       sessionId: payload.sessionId,
