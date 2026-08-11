@@ -23,17 +23,6 @@ export async function POST(req: Request) {
   try {
     const payload = await req.json();
 
-    // FORCE LOG THE RAW PAYLOAD as a dummy message so we can see it in production
-    try {
-      await prisma.messageHistory.create({
-        data: {
-          leadId: "abc20580-e653-4275-8295-cfb5cb248572", // The ID of the test lead
-          role: "USER",
-          content: JSON.stringify(payload).substring(0, 1000),
-        },
-      });
-    } catch(e) {}
-
 
     logger.info("Webhook received", "OpenWA-Webhook", {
       sessionId: payload.sessionId,
@@ -62,11 +51,18 @@ export async function POST(req: Request) {
     // Normalize phone number (remove @c.us suffix for storage)
     const phoneNumber = fromNumber.replace("@c.us", "");
 
-    // Step 2: Find the agency by sessionId
+    // Step 2: Find the agency and its active agents by sessionId
     const waSession = await prisma.whatsappSession.findFirst({
       where: { openwaSessionName: sessionId },
       include: {
-        agency: true,
+        agency: {
+          include: {
+            agents: {
+              where: { isActive: true },
+              take: 1, // For now, we pick the first active agent
+            },
+          },
+        },
       },
     });
 
@@ -79,6 +75,14 @@ export async function POST(req: Request) {
     }
 
     const agency = waSession.agency;
+    const activeAgent = agency.agents[0];
+
+    if (!activeAgent) {
+      logger.error(`No active agent found for agency: ${agency.id}`, "OpenWA-Webhook");
+      // If there is no active agent, we don't know how to respond. We could fallback to agency or just ignore.
+      // For now, we will just return so we don't crash.
+      return NextResponse.json({ status: "ignored", reason: "no_active_agent" });
+    }
 
     // Step 3: Find or create the lead
     const lead = await prisma.lead.upsert({
@@ -123,7 +127,7 @@ export async function POST(req: Request) {
     const messageHistory = recentMessages.reverse();
 
     // Build the messages array for the LLM
-    const systemPrompt = agency.aiSystemPrompt || "Eres un asistente virtual útil y profesional.";
+    const systemPrompt = activeAgent.systemPrompt || "Eres un asistente virtual útil y profesional.";
 
     // Get catalog items for context (simple text search for now, RAG in Phase 3)
     const catalogItems = await prisma.catalogItem.findMany({
@@ -158,12 +162,12 @@ export async function POST(req: Request) {
     let aiResponse: string;
 
     try {
-      aiResponse = await callLLM(agency, messages);
+      aiResponse = await callLLM(activeAgent, messages);
     } catch (llmError) {
       logger.error(
         `LLM call failed: ${llmError}`,
         "OpenWA-Webhook",
-        { agencyId: agency.id }
+        { agencyId: agency.id, agentId: activeAgent.id }
       );
       aiResponse = "Lo siento, estoy teniendo dificultades técnicas en este momento. Un agente humano te contactará pronto. 🙏";
     }

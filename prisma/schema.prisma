@@ -74,6 +74,7 @@ model Agency {
   whatsappSessions WhatsappSession[]
   leads            Lead[]
   catalogItems     CatalogItem[]
+  agents           Agent[]
 
   @@map("agencies")
 }
@@ -141,4 +142,23 @@ model CatalogItem {
 
   @@index([agencyId])
   @@map("catalog_items")
+}
+
+model Agent {
+  id             String      @id @default(uuid())
+  agencyId       String      @map("agency_id")
+  name           String      @db.VarChar(100)
+  description    String?     @db.Text
+  systemPrompt   String?     @map("system_prompt") @db.Text
+  llmProvider    LLMProvider @map("llm_provider")
+  llmApiKey      String?     @map("llm_api_key") @db.Text
+  llmModel       String?     @map("llm_model")
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  agency         Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+
+  @@index([agencyId])
+  @@map("agents")
 }

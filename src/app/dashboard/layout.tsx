@@ -10,6 +10,7 @@ const navItems = [
   { href: "/dashboard/leads", icon: "👤", label: "Leads" },
   { href: "/dashboard/conversations", icon: "💬", label: "Conversaciones" },
   { href: "/dashboard/whatsapp", icon: "📱", label: "WhatsApp" },
+  { href: "/dashboard/agents", icon: "🤖", label: "Agentes" },
   { href: "/dashboard/catalog", icon: "📦", label: "Catálogo" },
   { href: "/dashboard/settings", icon: "⚙️", label: "Configuración" },
 ];
