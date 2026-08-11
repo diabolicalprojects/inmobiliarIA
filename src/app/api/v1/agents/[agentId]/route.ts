@@ -5,15 +5,16 @@ import { z } from "zod/v4";
 
 export async function GET(
   req: Request,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
+  const { agentId } = await params;
   const session = await auth();
   if (!session?.user?.agencyId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const agent = await prisma.agent.findFirst({
-    where: { id: params.agentId, agencyId: session.user.agencyId },
+    where: { id: agentId, agencyId: session.user.agencyId },
   });
 
   if (!agent) {
@@ -35,8 +36,9 @@ const updateSchema = z.object({
 
 export async function PATCH(
   req: Request,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
+  const { agentId } = await params;
   const session = await auth();
   if (!session?.user?.agencyId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -47,7 +49,7 @@ export async function PATCH(
     const validated = updateSchema.parse(body);
 
     const agent = await prisma.agent.updateMany({
-      where: { id: params.agentId, agencyId: session.user.agencyId },
+      where: { id: agentId, agencyId: session.user.agencyId },
       data: validated,
     });
 
@@ -55,7 +57,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Agente no encontrado" }, { status: 404 });
     }
 
-    const updated = await prisma.agent.findUnique({ where: { id: params.agentId }});
+    const updated = await prisma.agent.findUnique({ where: { id: agentId }});
     return NextResponse.json({ agent: updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -70,15 +72,16 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { agentId: string } }
+  { params }: { params: Promise<{ agentId: string }> }
 ) {
+  const { agentId } = await params;
   const session = await auth();
   if (!session?.user?.agencyId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
   }
 
   const agent = await prisma.agent.deleteMany({
-    where: { id: params.agentId, agencyId: session.user.agencyId },
+    where: { id: agentId, agencyId: session.user.agencyId },
   });
 
   if (agent.count === 0) {

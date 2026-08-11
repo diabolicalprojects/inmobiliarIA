@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -15,8 +15,9 @@ interface Agent {
   isActive: boolean;
 }
 
-export default function AgentConfigPage({ params }: { params: { agentId: string } }) {
+export default function AgentConfigPage({ params }: { params: Promise<{ agentId: string }> }) {
   const router = useRouter();
+  const { agentId } = use(params);
   const [form, setForm] = useState<Agent>({
     id: "",
     name: "",
@@ -38,7 +39,7 @@ export default function AgentConfigPage({ params }: { params: { agentId: string 
   const [loadingModels, setLoadingModels] = useState(false);
 
   useEffect(() => {
-    fetch(`/api/v1/agents/${params.agentId}`)
+    fetch(`/api/v1/agents/${agentId}`)
       .then((r) => r.json())
       .then((data) => {
         if (data.agent) {
@@ -58,7 +59,7 @@ export default function AgentConfigPage({ params }: { params: { agentId: string 
         }
       })
       .finally(() => setLoading(false));
-  }, [params.agentId]);
+  }, [agentId]);
 
   async function handleLoadModels() {
     if (!form.llmApiKey) {
@@ -95,7 +96,7 @@ export default function AgentConfigPage({ params }: { params: { agentId: string 
     setMessage("");
 
     try {
-      const res = await fetch(`/api/v1/agents/${params.agentId}`, {
+      const res = await fetch(`/api/v1/agents/${agentId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(form),
@@ -119,7 +120,7 @@ export default function AgentConfigPage({ params }: { params: { agentId: string 
     
     setDeleting(true);
     try {
-      const res = await fetch(`/api/v1/agents/${params.agentId}`, { method: "DELETE" });
+      const res = await fetch(`/api/v1/agents/${agentId}`, { method: "DELETE" });
       if (res.ok) {
         router.push("/dashboard/agents");
       } else {
