@@ -1,4 +1,4 @@
-import { generateText, CoreMessage, tool } from "ai";
+import { generateText, tool } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -14,6 +14,12 @@ interface AgencyConfig {
   llmModel: string | null;
 }
 
+// Definimos el tipo exacto para que tsc resuelva el overload de generateText correctamente
+type SDKMessage = Array<{
+  role: "user" | "assistant" | "system";
+  content: string;
+}>;
+
 export async function runAIAgent({
   agency,
   leadId,
@@ -23,7 +29,7 @@ export async function runAIAgent({
   agency: AgencyConfig;
   leadId: string;
   systemPrompt: string;
-  messages: CoreMessage[];
+  messages: SDKMessage;
 }): Promise<string> {
   const provider = agency.llmProvider || "OPENAI";
   const apiKey = agency.llmApiKey || process.env.GLOBAL_LLM_API_KEY;
@@ -33,7 +39,7 @@ export async function runAIAgent({
     return "Lo siento, tengo un problema de configuración (Falta API Key).";
   }
 
-  let model;
+  let model: any;
 
   try {
     switch (provider) {
@@ -62,12 +68,12 @@ export async function runAIAgent({
       messages,
       maxTokens: 500,
       tools: {
-        searchCatalog: tool({
+        searchCatalog: {
           description: "Busca en el catálogo de propiedades o viajes para dar recomendaciones precisas al usuario.",
-          parameters: z.object({
+          inputSchema: z.object({
             query: z.string().describe("La búsqueda semántica (ej. 'casa en la playa con 3 cuartos' o 'viaje a europa económico')"),
           }),
-          execute: async ({ query }) => {
+          execute: async ({ query }: { query: string }) => {
             try {
               const items = await searchCatalogSemantic(agency.id, query, apiKey, 3);
               
@@ -86,24 +92,24 @@ export async function runAIAgent({
               return "Error buscando en catálogo.";
             }
           },
-        }),
-        qualifyLead: tool({
+        },
+        qualifyLead: {
           description: "Califica a un lead si ha mostrado interés explícito, presupuesto, y ha proporcionado datos relevantes (nombre/email).",
-          parameters: z.object({
+          inputSchema: z.object({
             isQualified: z.boolean().describe("Si el lead cumple los criterios de calificación"),
             summary: z.string().describe("Un resumen de 1 línea de lo que quiere el lead"),
           }),
-          execute: async ({ isQualified, summary }) => {
+          execute: async ({ isQualified, summary }: { isQualified: boolean; summary: string }) => {
             await prisma.lead.update({
               where: { id: leadId },
               data: { isQualified, aiSummary: summary },
             });
             return `Lead actualizado. Calificado: ${isQualified}. Resumen guardado.`;
           },
-        }),
+        },
       },
-      maxSteps: 3, // Allow the agent to call tools and then respond to the user in a multi-step loop
-    });
+      maxSteps: 3,
+    } as any);
 
     return text || "Lo siento, no pude generar una respuesta.";
   } catch (error) {

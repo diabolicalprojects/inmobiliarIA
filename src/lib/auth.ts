@@ -3,6 +3,7 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { authConfig } from "./auth.config";
+import "next-auth/jwt";
 
 declare module "next-auth" {
   interface User {
@@ -21,7 +22,7 @@ declare module "next-auth" {
   }
 }
 
-declare module "@auth/core/jwt" {
+declare module "next-auth/jwt" {
   interface JWT {
     role: string;
     agencyId: string | null;
