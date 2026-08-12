@@ -28,9 +28,6 @@ const updateSchema = z.object({
   name: z.string().min(2).optional(),
   description: z.string().nullable().optional(),
   systemPrompt: z.string().nullable().optional(),
-  llmProvider: z.enum(["OPENAI", "ANTHROPIC", "GOOGLE"]).optional(),
-  llmApiKey: z.string().nullable().optional(),
-  llmModel: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
 });
 

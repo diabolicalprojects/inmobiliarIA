@@ -36,7 +36,6 @@ export async function POST(req: Request) {
       data: {
         ...validated,
         agencyId: session.user.agencyId,
-        llmProvider: "OPENAI", // Default
         isActive: true,
       },
     });

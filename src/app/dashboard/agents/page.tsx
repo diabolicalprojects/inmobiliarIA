@@ -8,8 +8,6 @@ interface Agent {
   id: string;
   name: string;
   description: string | null;
-  llmProvider: string;
-  llmModel: string | null;
   isActive: boolean;
 }
 
@@ -101,9 +99,6 @@ export default function AgentsPage() {
                     <div className={`badge ${agent.isActive ? "badge-success" : "badge-error"}`}>
                       {agent.isActive ? "Activo" : "Inactivo"}
                     </div>
-                    <span style={{ fontSize: "0.75rem", fontWeight: 600, color: "var(--text-muted)", textTransform: "uppercase" }}>
-                      {agent.llmProvider}
-                    </span>
                   </div>
 
                   <h3 style={{ fontSize: "1.25rem", fontWeight: 700, marginBottom: "var(--space-xs)" }}>
@@ -114,9 +109,7 @@ export default function AgentsPage() {
                     {agent.description || "Sin descripción"}
                   </p>
 
-                  <div style={{ padding: "var(--space-sm)", background: "var(--bg-elevated)", borderRadius: 8, fontSize: "0.75rem", color: "var(--text-muted)" }}>
-                    <strong>Modelo:</strong> {agent.llmModel || "No configurado"}
-                  </div>
+
                 </div>
               </Link>
             ))}

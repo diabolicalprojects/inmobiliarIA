@@ -9,9 +9,6 @@ interface Agent {
   name: string;
   description: string;
   systemPrompt: string;
-  llmProvider: string;
-  llmApiKey: string;
-  llmModel: string;
   isActive: boolean;
 }
 
@@ -23,9 +20,6 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
     name: "",
     description: "",
     systemPrompt: "",
-    llmProvider: "OPENAI",
-    llmApiKey: "",
-    llmModel: "",
     isActive: true,
   });
   
@@ -48,47 +42,14 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
             name: data.agent.name || "",
             description: data.agent.description || "",
             systemPrompt: data.agent.systemPrompt || "",
-            llmProvider: data.agent.llmProvider || "OPENAI",
-            llmApiKey: data.agent.llmApiKey || "",
-            llmModel: data.agent.llmModel || "",
             isActive: data.agent.isActive,
           });
-          if (data.agent.llmModel) {
-            setModels([data.agent.llmModel]); // Initialize with the saved model at least
-          }
         }
       })
       .finally(() => setLoading(false));
   }, [agentId]);
 
-  async function handleLoadModels() {
-    if (!form.llmApiKey) {
-      setMessage("⚠️ Ingresa una API key primero");
-      setTimeout(() => setMessage(""), 3000);
-      return;
-    }
-    
-    setLoadingModels(true);
-    try {
-      const res = await fetch(`/api/v1/agents/models?provider=${form.llmProvider}&apiKey=${form.llmApiKey}`);
-      const data = await res.json();
-      
-      if (res.ok && data.models) {
-        setModels(data.models);
-        setMessage("✅ Modelos cargados");
-        if (data.models.length > 0 && !data.models.includes(form.llmModel)) {
-          setForm({ ...form, llmModel: data.models[0] });
-        }
-      } else {
-        setMessage(`❌ ${data.error || "Error al cargar modelos"}`);
-      }
-    } catch (e) {
-      setMessage("❌ Error de conexión al cargar modelos");
-    } finally {
-      setLoadingModels(false);
-      setTimeout(() => { if(message.startsWith("✅") || message.startsWith("❌") || message.startsWith("⚠️")) setMessage("") }, 3000);
-    }
-  }
+
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
@@ -199,65 +160,7 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
               </div>
             </div>
 
-            {/* Configuración LLM */}
-            <div className="glass-card" style={{ padding: "var(--space-xl)" }}>
-              <h3 style={{ fontSize: "1.0625rem", fontWeight: 700, marginBottom: "var(--space-lg)" }}>
-                🧠 Configuración de Inteligencia Artificial
-              </h3>
-              
-              <div className="input-group" style={{ marginBottom: "var(--space-md)" }}>
-                <label>Proveedor de IA</label>
-                <select
-                  className="input select"
-                  value={form.llmProvider}
-                  onChange={(e) => {
-                    setForm({ ...form, llmProvider: e.target.value, llmModel: "", llmApiKey: "" });
-                    setModels([]);
-                  }}
-                >
-                  <option value="OPENAI">🟢 OpenAI</option>
-                  <option value="ANTHROPIC">🟠 Anthropic (Claude)</option>
-                  <option value="GOOGLE">🔵 Google (Gemini)</option>
-                </select>
-              </div>
 
-              <div className="input-group" style={{ marginBottom: "var(--space-md)" }}>
-                <label>API Key del Proveedor</label>
-                <div style={{ display: "flex", gap: "var(--space-sm)" }}>
-                  <input
-                    type="password"
-                    className="input"
-                    value={form.llmApiKey}
-                    onChange={(e) => setForm({ ...form, llmApiKey: e.target.value })}
-                    placeholder={form.llmProvider === "OPENAI" ? "sk-..." : "API Key..."}
-                    style={{ flex: 1 }}
-                  />
-                  <button type="button" className="btn" onClick={handleLoadModels} disabled={loadingModels} style={{ background: "var(--bg-tertiary)", color: "var(--text-primary)", border: "1px solid var(--border-default)" }}>
-                    {loadingModels ? <span className="spinner"/> : "Cargar Modelos"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="input-group">
-                <label>Modelo de IA a utilizar</label>
-                <select
-                  className="input select"
-                  value={form.llmModel}
-                  onChange={(e) => setForm({ ...form, llmModel: e.target.value })}
-                  required
-                >
-                  <option value="" disabled>Selecciona un modelo...</option>
-                  {models.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-                {models.length === 0 && (
-                  <span style={{ fontSize: "0.75rem", color: "var(--text-warning)", marginTop: "4px", display: "block" }}>
-                    Haz clic en "Cargar Modelos" para ver las opciones disponibles para tu API Key.
-                  </span>
-                )}
-              </div>
-            </div>
 
             {/* Prompt */}
             <div className="glass-card" style={{ padding: "var(--space-xl)" }}>

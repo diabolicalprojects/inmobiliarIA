@@ -5,19 +5,20 @@ RUN apk add --no-cache libc6-compat
 
 WORKDIR /app
 
-# Copy package and prisma schema first!
-COPY package.json package-lock.json* ./
+# Copy package files
+COPY package.json pnpm-lock.yaml* ./
 COPY prisma ./prisma
 
-# Install dependencies (this will run postinstall successfully!)
-RUN npm ci
+# Install pnpm and dependencies
+RUN npm install -g pnpm
+RUN pnpm install
 
 # Copy application files
 COPY . .
 
 # Build Next.js app
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build
+RUN pnpm run build
 
 # Start configuration
 ENV NODE_ENV=production
