@@ -1,7 +1,7 @@
 /**
- * OpenWA / WAHA HTTP Client
+ * OpenWA HTTP Client
  *
- * All communication with the WhatsApp microservice (WAHA) goes through this class.
+ * All communication with the WhatsApp microservice goes through this class.
  * It handles session management, message sending, and status polling.
  */
 
@@ -56,7 +56,7 @@ export class OpenWAClient {
         ...options,
         headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${this.apiKey}`,
+          "X-API-Key": this.apiKey,
           ...options.headers,
         },
       });
@@ -94,80 +94,47 @@ export class OpenWAClient {
    * Start a new WhatsApp session. Returns the QR code as base64.
    */
   async startSession(sessionName: string): Promise<StartSessionResponse> {
-    // 1. Start session using the documented OpenWA contract first.
-    let sessionId = "";
+    let sessionId = sessionName;
     let status = "";
-    const baseUrl = process.env.NEXTAUTH_URL || process.env.AUTH_URL || "https://agentesia.diabolicalservices.tech";
+    const webhookUrl =
+      process.env.NEXTAUTH_URL ||
+      process.env.AUTH_URL ||
+      "https://agentesia.diabolicalservices.tech";
     
     try {
-      try {
-        const created = await this.request<SessionRecord>("/session/start", {
-          method: "POST",
-          headers: { api_key: this.apiKey },
-          body: JSON.stringify({ sessionId: sessionName }),
-        });
+      const created = await this.request<SessionRecord>("/api/sessions", {
+        method: "POST",
+        body: JSON.stringify({
+          name: sessionName,
+          config: {
+            webhooks: [
+              {
+                url: `${webhookUrl}/api/v1/webhooks/openwa/incoming`,
+                events: ["message", "message.any"],
+              },
+            ],
+          },
+        }),
+      });
 
-        sessionId = created.id || created.name || sessionName;
-        status = created.status || "PENDING";
-      } catch (documentedErr) {
-        console.warn("[OpenWA] Falling back to legacy session API", documentedErr);
-
-        const sessions = await this.request<SessionRecord[]>("/api/sessions");
-        const existing = sessions.find((s) => s.name === sessionName || s.id === sessionName);
-        if (existing) {
-          sessionId = existing.id || sessionName;
-          status = existing.status || "PENDING";
-        } else {
-          const created = await this.request<SessionRecord>("/api/sessions", {
-            method: "POST",
-            body: JSON.stringify({ name: sessionName }),
-          });
-          sessionId = created.id || sessionName;
-          status = created.status || "PENDING";
-        }
-      }
-
-      // Register webhook explicitly so all incoming messages reach this CRM.
-      try {
-        await this.request("/api/webhooks", {
-          method: "POST",
-          body: JSON.stringify({
-            sessionId: sessionId,
-            url: `${baseUrl}/api/v1/webhooks/openwa/incoming`,
-            events: ["message", "message.any"],
-          }),
-        });
-        console.log(`[OpenWA] Webhook configured for session ${sessionName}`);
-      } catch (webhookErr) {
-        console.error(`[OpenWA] Failed to configure webhook for session ${sessionName}:`, webhookErr);
-      }
+      sessionId = created.name || created.id || sessionName;
+      status = created.status || "PENDING";
     } catch (e) {
       console.error("[OpenWA] Failed to get/create session:", e);
       throw e;
     }
 
-    // 2. Start the engine
     try {
-      try {
-        await this.request(`/session/start`, {
-          method: "POST",
-          headers: { api_key: this.apiKey },
-          body: JSON.stringify({ sessionId }),
-        });
-      } catch {
-        await this.request(`/api/sessions/${sessionId}/start`, { method: "POST" });
-      }
+      await this.request(`/api/sessions/${sessionId}/start`, { method: "POST" });
     } catch (error) {
       console.error("[OpenWA] Failed to start engine:", error);
     }
     
-    // Give WAHA a moment to initialize the browser and generate the QR code
     await new Promise(r => setTimeout(r, 2000));
 
-    // 3. Attempt to fetch QR code
     let qrCodeBase64: string | undefined;
     try {
-      const qrRes = await this.request<SessionListRecord>(`/api/sessions/${sessionId}/qr`, {
+      const qrRes = await this.request<SessionListRecord>(`/api/${sessionId}/auth/qr`, {
         headers: { Accept: "application/json" },
       });
       qrCodeBase64 = qrRes?.qrCode || qrRes?.qrCodeBase64 || qrRes?.qr || undefined;
@@ -175,10 +142,9 @@ export class OpenWAClient {
       console.log(`[OpenWA] No QR code available right now for ${sessionId}`);
     }
 
-    // Refresh status
     try {
       const sessions = await this.request<SessionRecord[]>("/api/sessions");
-      const current = sessions.find((s) => s.id === sessionId);
+      const current = sessions.find((s) => s.name === sessionId || s.id === sessionId);
       if (current?.status) status = current.status;
     } catch {}
 
@@ -196,28 +162,14 @@ export class OpenWAClient {
   async sendText(sessionName: string, to: string, content: string): Promise<void> {
     const chatId = to.includes("@c.us") || to.includes("@g.us") ? to : `${to}@c.us`;
 
-    try {
-      await this.request("/chat/sendText", {
-        method: "POST",
-        headers: { api_key: this.apiKey },
-        body: JSON.stringify({
-          sessionId: sessionName,
-          args: {
-            to: chatId,
-            content,
-          },
-        }),
-      });
-    } catch {
-      await this.request("/api/sendText", {
-        method: "POST",
-        body: JSON.stringify({
-          session: sessionName,
-          chatId: chatId,
-          text: content,
-        }),
-      });
-    }
+    await this.request("/api/sendText", {
+      method: "POST",
+      body: JSON.stringify({
+        session: sessionName,
+        to: chatId,
+        text: content,
+      }),
+    });
 
     console.log(`[OpenWA] Message sent to ${chatId} via session ${sessionName}`);
   }
@@ -229,7 +181,7 @@ export class OpenWAClient {
     sessionName: string
   ): Promise<{ status: string }> {
     const sessions = await this.request<SessionRecord[]>("/api/sessions");
-    const existing = sessions.find((s) => s.name === sessionName);
+    const existing = sessions.find((s) => s.name === sessionName || s.id === sessionName);
     return { status: existing?.status ?? "unknown" };
   }
 
@@ -238,7 +190,7 @@ export class OpenWAClient {
    */
   async closeSession(sessionName: string): Promise<void> {
     const sessions = await this.request<SessionRecord[]>("/api/sessions");
-    const existing = sessions.find((s) => s.name === sessionName);
+    const existing = sessions.find((s) => s.name === sessionName || s.id === sessionName);
     if (!existing) return;
     if (!existing.id) return;
 
