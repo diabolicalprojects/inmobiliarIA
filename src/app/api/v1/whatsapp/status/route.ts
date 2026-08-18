@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
 
   const sessionId = req.nextUrl.searchParams.get("sessionId");
 
-  let waSessions = await prisma.whatsappSession.findMany({
+  const waSessions = await prisma.whatsappSession.findMany({
     where: {
       agencyId: session.user.agencyId,
       ...(sessionId ? { id: sessionId } : {}),
@@ -27,13 +27,14 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Actively check WAHA if any session is still pending
+  // Actively check OpenWA if any session is still pending
   for (let i = 0; i < waSessions.length; i++) {
     const waSession = waSessions[i];
     if (waSession.status === "PENDING" && waSession.openwaSessionName) {
       try {
         const openwa = getOpenWAClient();
         const openwaStatus = await openwa.getSessionStatus(waSession.openwaSessionName);
+        const qrCodeBase64 = waSession.qrCodeBase64 || (await openwa.getQrCode(waSession.openwaSessionName));
         
         if (openwaStatus.status === "ready" || openwaStatus.status === "WORKING") {
           waSessions[i] = await prisma.whatsappSession.update({
@@ -41,6 +42,14 @@ export async function GET(req: NextRequest) {
             data: {
               status: "CONNECTED",
               connectedAt: new Date(),
+              updatedAt: new Date(),
+            },
+          });
+        } else if (qrCodeBase64 && waSession.qrCodeBase64 !== qrCodeBase64) {
+          waSessions[i] = await prisma.whatsappSession.update({
+            where: { id: waSession.id },
+            data: {
+              qrCodeBase64,
               updatedAt: new Date(),
             },
           });

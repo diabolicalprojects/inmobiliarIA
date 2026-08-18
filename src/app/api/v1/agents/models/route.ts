@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 
+type OpenAIModel = { id: string };
+type GoogleModel = { name: string };
+
 export async function GET(req: Request) {
   const session = await auth();
   if (!session?.user?.agencyId) {
@@ -30,8 +33,8 @@ export async function GET(req: Request) {
       const data = await res.json();
       // Filter for gpt models, o1, etc, sort alphabetically
       models = data.data
-        .filter((m: any) => m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3"))
-        .map((m: any) => m.id)
+        .filter((m: OpenAIModel) => m.id.startsWith("gpt-") || m.id.startsWith("o1") || m.id.startsWith("o3"))
+        .map((m: OpenAIModel) => m.id)
         .sort();
     } else if (provider === "ANTHROPIC") {
       // Anthropic does not have a public list models API endpoint yet, so we return a static curated list
@@ -53,16 +56,17 @@ export async function GET(req: Request) {
       }
       const data = await res.json();
       models = data.models
-        .filter((m: any) => m.name.includes("gemini"))
-        .map((m: any) => m.name.replace("models/", ""))
+        .filter((m: GoogleModel) => m.name.includes("gemini"))
+        .map((m: GoogleModel) => m.name.replace("models/", ""))
         .sort();
     } else {
       return NextResponse.json({ error: "Proveedor no soportado" }, { status: 400 });
     }
 
     return NextResponse.json({ models });
-  } catch (error: any) {
-    console.error("Error cargando modelos:", error.message);
-    return NextResponse.json({ error: error.message || "Error al cargar modelos" }, { status: 500 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Error al cargar modelos";
+    console.error("Error cargando modelos:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

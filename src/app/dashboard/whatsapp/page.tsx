@@ -29,7 +29,10 @@ export default function WhatsAppPage() {
   }, []);
 
   useEffect(() => {
-    checkStatus();
+    const timer = window.setTimeout(() => {
+      void checkStatus();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [checkStatus]);
 
   // Poll every 5 seconds if ANY session is PENDING
@@ -126,7 +129,11 @@ export default function WhatsAppPage() {
               <div key={session.sessionId} className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "var(--space-md)" }}>
                   <div className={`badge ${session.status === "CONNECTED" ? "badge-success" : "badge-warning"}`}>
-                    {session.status === "CONNECTED" ? "Conectado" : "Esperando QR..."}
+                    {session.status === "CONNECTED"
+                      ? "Conectado"
+                      : session.qrCode
+                        ? "Esperando escaneo"
+                        : "Generando QR..."}
                   </div>
                   <button 
                     onClick={() => handleDisconnect(session.sessionId)}
@@ -142,6 +149,7 @@ export default function WhatsAppPage() {
                 {session.status === "PENDING" && session.qrCode ? (
                   <div style={{ textAlign: "center", flex: 1 }}>
                     <div className="qr-container" style={{ margin: "0 auto", padding: "var(--space-sm)", background: "white", borderRadius: 12, display: "inline-block", width: "100%", maxWidth: 220 }}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
                         src={session.qrCode.startsWith("data:") ? session.qrCode : `data:image/png;base64,${session.qrCode}`}
                         alt="QR Code"
@@ -155,9 +163,13 @@ export default function WhatsAppPage() {
                 ) : (
                   <div style={{ textAlign: "center", flex: 1, padding: "var(--space-lg) 0" }}>
                     <div style={{ fontSize: "3rem", marginBottom: "var(--space-sm)" }}>✅</div>
-                    <h4 style={{ fontWeight: 600, color: "var(--text-primary)" }}>Agente Activo</h4>
+                    <h4 style={{ fontWeight: 600, color: "var(--text-primary)" }}>
+                      {session.status === "CONNECTED" ? "Agente Activo" : "Esperando QR"}
+                    </h4>
                     <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginTop: "var(--space-sm)" }}>
-                      Respondiendo mensajes automáticamente.
+                      {session.status === "CONNECTED"
+                        ? "Respondiendo mensajes automáticamente."
+                        : "La sesión está creada, pero aún falta mostrar el código QR."}
                     </p>
                     <div style={{ marginTop: "var(--space-md)", padding: "var(--space-xs)", background: "var(--bg-elevated)", borderRadius: 8 }}>
                       <code style={{ fontSize: "0.75rem", color: "var(--text-muted)", wordBreak: "break-all" }}>

@@ -5,6 +5,28 @@ import logger from "@/lib/utils/logger";
 import redis from "@/lib/redis";
 import { runAIAgent } from "@/lib/ai";
 
+type IncomingMessageData = {
+  from?: string;
+  body?: string;
+  text?: string;
+  content?: string;
+  sender?: {
+    id?: string;
+    pushname?: string;
+  };
+  _data?: {
+    notifyName?: string;
+  };
+  notifyName?: string;
+};
+
+type OpenWAPayload = {
+  sessionId?: string;
+  session?: string;
+  payload?: IncomingMessageData;
+  data?: IncomingMessageData;
+} & IncomingMessageData;
+
 /**
  * POST /api/v1/webhooks/openwa/incoming
  *
@@ -17,7 +39,7 @@ import { runAIAgent } from "@/lib/ai";
  */
 export async function POST(req: Request) {
   try {
-    const payload = await req.json();
+    const payload = (await req.json()) as OpenWAPayload;
 
     const sessionId = payload.sessionId || payload.session;
     const messageData = payload.payload || payload.data || payload;
@@ -47,7 +69,7 @@ async function processMessageAsync(
   sessionId: string,
   phoneNumber: string,
   messageBody: string,
-  messageData: any
+  messageData: IncomingMessageData
 ) {
   // 1. Encontrar la Agencia y el Agente Activo
   const waSession = await prisma.whatsappSession.findFirst({

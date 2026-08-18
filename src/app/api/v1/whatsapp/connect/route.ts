@@ -33,6 +33,17 @@ export async function POST() {
       },
     });
 
+    if (!waSession.qrCodeBase64) {
+      const qrCodeBase64 = result.qrCodeBase64 || (await openwa.getQrCode(sessionName)) || null;
+      if (qrCodeBase64) {
+        await prisma.whatsappSession.update({
+          where: { id: waSession.id },
+          data: { qrCodeBase64 },
+        });
+        waSession.qrCodeBase64 = qrCodeBase64;
+      }
+    }
+
     logger.info(`Session started for agency ${agencyId}`, "WhatsApp", {
       sessionName,
     });

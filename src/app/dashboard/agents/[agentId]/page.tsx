@@ -28,10 +28,6 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
   const [message, setMessage] = useState("");
   const [deleting, setDeleting] = useState(false);
   
-  // Model loading
-  const [models, setModels] = useState<string[]>([]);
-  const [loadingModels, setLoadingModels] = useState(false);
-
   useEffect(() => {
     fetch(`/api/v1/agents/${agentId}`)
       .then((r) => r.json())
@@ -48,8 +44,6 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
       })
       .finally(() => setLoading(false));
   }, [agentId]);
-
-
 
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();

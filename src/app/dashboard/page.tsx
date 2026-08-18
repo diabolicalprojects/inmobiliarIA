@@ -7,6 +7,8 @@ export default async function DashboardPage() {
   if (!session?.user?.agencyId) redirect("/login");
 
   const agencyId = session.user.agencyId;
+  const since = new Date();
+  since.setHours(since.getHours() - 24);
 
   const [agency, leadsCount, messagesCount, activeSession, recentLeads] =
     await Promise.all([
@@ -15,7 +17,7 @@ export default async function DashboardPage() {
       prisma.messageHistory.count({
         where: {
           lead: { agencyId },
-          createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+          createdAt: { gte: since },
         },
       }),
       prisma.whatsappSession.findFirst({

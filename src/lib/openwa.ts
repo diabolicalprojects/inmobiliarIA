@@ -26,6 +26,11 @@ type SessionListRecord = SessionRecord & {
   qrCode?: string;
   qrCodeBase64?: string;
   qr?: string;
+  data?: {
+    qrCode?: string;
+    qrCodeBase64?: string;
+    qr?: string;
+  };
 };
 
 export class OpenWAClient {
@@ -129,18 +134,8 @@ export class OpenWAClient {
     } catch (error) {
       console.error("[OpenWA] Failed to start engine:", error);
     }
-    
-    await new Promise(r => setTimeout(r, 2000));
 
-    let qrCodeBase64: string | undefined;
-    try {
-      const qrRes = await this.request<SessionListRecord>(`/api/${sessionId}/auth/qr`, {
-        headers: { Accept: "application/json" },
-      });
-      qrCodeBase64 = qrRes?.qrCode || qrRes?.qrCodeBase64 || qrRes?.qr || undefined;
-    } catch {
-      console.log(`[OpenWA] No QR code available right now for ${sessionId}`);
-    }
+    const qrCodeBase64 = await this.getQrCode(sessionId);
 
     try {
       const sessions = await this.request<SessionRecord[]>("/api/sessions");
@@ -153,6 +148,39 @@ export class OpenWAClient {
       sessionId,
       status,
     };
+  }
+
+  async getQrCode(sessionName: string): Promise<string | undefined> {
+    const attempts = 6;
+    for (let attempt = 1; attempt <= attempts; attempt++) {
+      try {
+        const qrRes = await this.request<SessionListRecord>(`/api/${sessionName}/auth/qr`, {
+          headers: { Accept: "application/json" },
+        });
+
+        const qrCodeBase64 =
+          qrRes?.qrCode ||
+          qrRes?.qrCodeBase64 ||
+          qrRes?.qr ||
+          qrRes?.data?.qrCode ||
+          qrRes?.data?.qrCodeBase64 ||
+          qrRes?.data?.qr;
+
+        if (qrCodeBase64) {
+          return qrCodeBase64;
+        }
+      } catch {
+        if (attempt === attempts) {
+          console.log(`[OpenWA] No QR code available for ${sessionName} after ${attempts} attempts`);
+        }
+      }
+
+      if (attempt < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+      }
+    }
+
+    return undefined;
   }
 
   /**

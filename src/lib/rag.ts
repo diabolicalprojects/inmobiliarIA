@@ -3,6 +3,15 @@ import { createOpenAI } from "@ai-sdk/openai";
 import prisma from "@/lib/prisma";
 import logger from "@/lib/utils/logger";
 
+type CatalogSearchRow = {
+  id: string;
+  title: string;
+  description: string;
+  price: string | number | null;
+  location: string | null;
+  similarity: number;
+};
+
 /**
  * Convierte un texto a vector usando OpenAI text-embedding-3-small
  * Nota: Asume que se usará OpenAI para embeddings de manera global,
@@ -42,14 +51,7 @@ export async function searchCatalogSemantic(agencyId: string, query: string, api
       LIMIT ${limit};
     `;
 
-    return items as Array<{
-      id: string;
-      title: string;
-      description: string;
-      price: any;
-      location: string;
-      similarity: number;
-    }>;
+    return items as CatalogSearchRow[];
   } catch (error) {
     logger.error(`Semantic search error: ${error}`, "RAG");
     return [];

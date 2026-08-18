@@ -1,4 +1,4 @@
-import { generateText, tool } from "ai";
+import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { createAnthropic } from "@ai-sdk/anthropic";
 import { createGoogleGenerativeAI } from "@ai-sdk/google";
@@ -39,7 +39,7 @@ export async function runAIAgent({
     return "Lo siento, tengo un problema de configuración (Falta API Key).";
   }
 
-  let model: any;
+  let model: Parameters<typeof generateText>[0]["model"];
 
   try {
     switch (provider) {
@@ -62,11 +62,11 @@ export async function runAIAgent({
         throw new Error(`Proveedor desconocido: ${provider}`);
     }
 
-    const { text, toolCalls } = await generateText({
+    const { text } = await generateText({
       model,
       system: `${systemPrompt}\n\nREGLA CRÍTICA: Responde siempre de manera conversacional en formato de WhatsApp (corto, al grano, sin formato markdown excesivo). Eres proactivo. Si un cliente muestra intención real de compra o pide recomendaciones, USA TUS HERRAMIENTAS.`,
       messages,
-      maxTokens: 500,
+      maxOutputTokens: 500,
       tools: {
         searchCatalog: {
           description: "Busca en el catálogo de propiedades o viajes para dar recomendaciones precisas al usuario.",
@@ -88,7 +88,7 @@ export async function runAIAgent({
                   relevance: Math.round(i.similarity * 100) + "%",
                 }))
               );
-            } catch (error) {
+    } catch {
               return "Error buscando en catálogo.";
             }
           },
@@ -108,8 +108,7 @@ export async function runAIAgent({
           },
         },
       },
-      maxSteps: 3,
-    } as any);
+    });
 
     return text || "Lo siento, no pude generar una respuesta.";
   } catch (error) {
