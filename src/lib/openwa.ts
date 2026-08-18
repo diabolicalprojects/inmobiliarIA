@@ -179,7 +179,7 @@ export class OpenWAClient {
     try {
       const sessions = await this.request<SessionRecord[]>("/api/sessions");
       const current = sessions.find((s) => s.id === sessionId);
-      if (current) status = current.status;
+      if (current?.status) status = current.status;
     } catch {}
 
     return {
@@ -230,7 +230,7 @@ export class OpenWAClient {
   ): Promise<{ status: string }> {
     const sessions = await this.request<SessionRecord[]>("/api/sessions");
     const existing = sessions.find((s) => s.name === sessionName);
-    return { status: existing ? existing.status : "unknown" };
+    return { status: existing?.status ?? "unknown" };
   }
 
   /**
@@ -240,6 +240,7 @@ export class OpenWAClient {
     const sessions = await this.request<SessionRecord[]>("/api/sessions");
     const existing = sessions.find((s) => s.name === sessionName);
     if (!existing) return;
+    if (!existing.id) return;
 
     await this.request(`/api/sessions/${existing.id}/stop`, {
       method: "POST",
