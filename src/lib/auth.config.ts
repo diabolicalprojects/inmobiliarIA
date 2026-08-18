@@ -2,6 +2,10 @@ import type { NextAuthConfig } from "next-auth";
 
 export const authConfig = {
   trustHost: true,
+  secret:
+    process.env.AUTH_SECRET ||
+    process.env.NEXTAUTH_SECRET ||
+    "change-me-in-production-auth-secret-32-chars",
   pages: {
     signIn: "/login",
   },

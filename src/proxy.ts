@@ -1,7 +1,4 @@
-import NextAuth from "next-auth";
-import { authConfig } from "@/lib/auth.config";
-
-export const { auth: proxy } = NextAuth(authConfig);
+import { auth } from "@/lib/auth";
 
 const publicPaths = [
   "/login",
@@ -10,7 +7,7 @@ const publicPaths = [
   "/api/v1/webhooks",
 ];
 
-export default proxy((req) => {
+export default auth((req) => {
   const { pathname } = req.nextUrl;
 
   // Allow public paths
