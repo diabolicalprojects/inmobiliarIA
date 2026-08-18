@@ -30,11 +30,13 @@ export async function GET(req: NextRequest) {
   // Actively check OpenWA if any session is still pending
   for (let i = 0; i < waSessions.length; i++) {
     const waSession = waSessions[i];
-    if (waSession.status === "PENDING" && waSession.openwaSessionName) {
+    const openwaSessionId = waSession.openwaSessionId || waSession.openwaSessionName;
+
+    if (waSession.status === "PENDING" && openwaSessionId) {
       try {
         const openwa = getOpenWAClient();
-        const openwaStatus = await openwa.getSessionStatus(waSession.openwaSessionName);
-        const qrCodeBase64 = waSession.qrCodeBase64 || (await openwa.getQrCode(waSession.openwaSessionName));
+        const openwaStatus = await openwa.getSessionStatus(openwaSessionId);
+        const qrCodeBase64 = waSession.qrCodeBase64 || (await openwa.getQrCode(openwaSessionId));
         
         if (openwaStatus.status === "ready" || openwaStatus.status === "WORKING") {
           waSessions[i] = await prisma.whatsappSession.update({
@@ -72,6 +74,7 @@ export async function GET(req: NextRequest) {
     sessions: waSessions.map(s => ({
       sessionId: s.id,
       sessionName: s.openwaSessionName,
+      openwaSessionId: s.openwaSessionId,
       status: s.status,
       qrCode: s.status === "PENDING" ? s.qrCodeBase64 : null,
       connectedAt: s.connectedAt,

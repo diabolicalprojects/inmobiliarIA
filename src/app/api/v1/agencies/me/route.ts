@@ -17,6 +17,7 @@ export async function GET() {
         select: {
           id: true,
           openwaSessionName: true,
+          openwaSessionId: true,
           status: true,
           connectedAt: true,
         },

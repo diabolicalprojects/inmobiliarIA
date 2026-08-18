@@ -73,7 +73,12 @@ async function processMessageAsync(
 ) {
   // 1. Encontrar la Agencia y el Agente Activo
   const waSession = await prisma.whatsappSession.findFirst({
-    where: { openwaSessionName: sessionId },
+    where: {
+      OR: [
+        { openwaSessionId: sessionId },
+        { openwaSessionName: sessionId },
+      ],
+    },
     include: {
       agency: {
         include: {
@@ -171,7 +176,7 @@ async function processMessageAsync(
   // 7. Enviar la respuesta vía OpenWA
   try {
     const openwa = getOpenWAClient();
-    await openwa.sendText(sessionId, `${phoneNumber}@c.us`, aiResponse);
+    await openwa.sendText(waSession.openwaSessionId || sessionId, `${phoneNumber}@c.us`, aiResponse);
   } catch (sendError) {
     logger.error(`Failed to send message via OpenWA: ${sendError}`, "OpenWA-Webhook");
   }

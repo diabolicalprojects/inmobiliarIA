@@ -101,7 +101,17 @@ function Sidebar() {
           <span style={{ fontSize: "1rem" }}>{isDark ? "☀️" : "🌙"}</span>
         </button>
 
-        <div className="sidebar-user" onClick={() => signOut({ callbackUrl: "/login" })}>
+        <div
+          className="sidebar-user"
+          onClick={() =>
+            signOut({
+              callbackUrl:
+                typeof window !== "undefined"
+                  ? `${window.location.origin}/login`
+                  : "/login",
+            })
+          }
+        >
           <div className="user-avatar">
             {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
           </div>

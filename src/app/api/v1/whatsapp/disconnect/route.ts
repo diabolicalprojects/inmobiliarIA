@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     // Try to close in OpenWA
     try {
       const openwa = getOpenWAClient();
-      await openwa.closeSession(waSession.openwaSessionName);
+      await openwa.closeSession(waSession.openwaSessionId || waSession.openwaSessionName);
     } catch (err) {
       logger.warn(
         `OpenWA close failed (session may already be closed): ${err}`,

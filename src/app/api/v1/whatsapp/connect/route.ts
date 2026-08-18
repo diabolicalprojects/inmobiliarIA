@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { getOpenWAClient } from "@/lib/openwa";
@@ -6,7 +6,7 @@ import logger from "@/lib/utils/logger";
 import crypto from "crypto";
 
 // POST /api/v1/whatsapp/connect — Start a session and get QR code
-export async function POST() {
+export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.agencyId) {
     return NextResponse.json({ error: "No autorizado" }, { status: 401 });
@@ -21,20 +21,23 @@ export async function POST() {
     
     // Call OpenWA to start session
     const openwa = getOpenWAClient();
-    const result = await openwa.startSession(sessionName);
+    const result = await openwa.startSession(sessionName, req.nextUrl.origin);
 
     // Create a new session record
+    const isConnected = result.status === "ready" || result.status === "WORKING";
     const waSession = await prisma.whatsappSession.create({
       data: {
         agencyId,
         openwaSessionName: sessionName,
-        status: "PENDING",
+        openwaSessionId: result.sessionId,
+        status: isConnected ? "CONNECTED" : "PENDING",
         qrCodeBase64: result.qrCodeBase64 || null,
+        connectedAt: isConnected ? new Date() : null,
       },
     });
 
     if (!waSession.qrCodeBase64) {
-      const qrCodeBase64 = result.qrCodeBase64 || (await openwa.getQrCode(sessionName)) || null;
+      const qrCodeBase64 = result.qrCodeBase64 || (await openwa.getQrCode(result.sessionId)) || null;
       if (qrCodeBase64) {
         await prisma.whatsappSession.update({
           where: { id: waSession.id },
@@ -51,6 +54,7 @@ export async function POST() {
     return NextResponse.json({
       sessionId: waSession.id,
       sessionName: waSession.openwaSessionName,
+      openwaSessionId: result.sessionId,
       qrCode: waSession.qrCodeBase64,
       status: waSession.status,
     });
