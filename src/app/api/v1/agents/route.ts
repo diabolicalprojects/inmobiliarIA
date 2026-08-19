@@ -11,6 +11,12 @@ export async function GET() {
 
   const agents = await prisma.agent.findMany({
     where: { agencyId: session.user.agencyId },
+    include: {
+      whatsappSessions: {
+        select: { id: true, status: true, openwaSessionName: true },
+        orderBy: { updatedAt: "desc" },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
 
@@ -20,6 +26,7 @@ export async function GET() {
 const createSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional(),
+  whatsappSessionId: z.string().uuid().nullable().optional(),
 });
 
 export async function POST(req: Request) {
@@ -31,14 +38,33 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const validated = createSchema.parse(body);
+    const { whatsappSessionId, ...agentData } = validated;
+
+    if (whatsappSessionId) {
+      const waSession = await prisma.whatsappSession.findFirst({
+        where: { id: whatsappSessionId, agencyId: session.user.agencyId },
+        select: { id: true },
+      });
+
+      if (!waSession) {
+        return NextResponse.json({ error: "Sesión de WhatsApp no encontrada" }, { status: 404 });
+      }
+    }
 
     const agent = await prisma.agent.create({
       data: {
-        ...validated,
+        ...agentData,
         agencyId: session.user.agencyId,
         isActive: true,
       },
     });
+
+    if (whatsappSessionId) {
+      await prisma.whatsappSession.update({
+        where: { id: whatsappSessionId },
+        data: { agentId: agent.id },
+      });
+    }
 
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error) {

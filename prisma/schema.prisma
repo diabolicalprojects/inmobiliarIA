@@ -84,6 +84,7 @@ model Agency {
 model WhatsappSession {
   id                String        @id @default(uuid())
   agencyId          String        @map("agency_id")
+  agentId           String?       @map("agent_id")
   openwaSessionName String        @unique @map("openwa_session_name") @db.VarChar(255)
   openwaSessionId   String?       @map("openwa_session_id") @db.VarChar(255)
   status            SessionStatus @default(PENDING)
@@ -93,8 +94,11 @@ model WhatsappSession {
   updatedAt         DateTime      @updatedAt @map("updated_at")
 
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  agent  Agent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  leads  Lead[]
 
   @@index([agencyId])
+  @@index([agentId])
   @@index([openwaSessionId])
   @@map("whatsapp_sessions")
 }
@@ -102,6 +106,7 @@ model WhatsappSession {
 model Lead {
   id          String   @id @default(uuid())
   agencyId    String   @map("agency_id")
+  whatsappSessionId String? @map("whatsapp_session_id")
   phoneNumber String   @map("phone_number") @db.VarChar(25)
   name        String?  @db.VarChar(100)
   aiSummary   String?  @map("ai_summary") @db.Text
@@ -110,10 +115,12 @@ model Lead {
   updatedAt   DateTime @updatedAt @map("updated_at")
 
   agency   Agency           @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  whatsappSession WhatsappSession? @relation(fields: [whatsappSessionId], references: [id], onDelete: SetNull)
   messages MessageHistory[]
 
   @@unique([agencyId, phoneNumber])
   @@index([agencyId])
+  @@index([whatsappSessionId])
   @@map("leads")
 }
 
@@ -160,6 +167,7 @@ model Agent {
   updatedAt      DateTime    @updatedAt @map("updated_at")
 
   agency         Agency      @relation(fields: [agencyId], references: [id], onDelete: Cascade)
+  whatsappSessions WhatsappSession[]
 
   @@index([agencyId])
   @@map("agents")

@@ -247,76 +247,6 @@ Sé entusiasta, genera emoción por los destinos y personaliza cada recomendaci�
     data: [...realEstateItems, ...travelItems],
   });
 
-  // ─── Create Mock Leads ────────────────────────────
-
-  const lead1 = await prisma.lead.create({
-    data: {
-      agencyId: realEstateAgency.id,
-      phoneNumber: "5215551234567",
-      name: "Carlos Mendoza",
-      aiSummary:
-        "Busca casa de 3-4 recámaras en zona sur de la ciudad. Presupuesto: 4-6 MDP. Interesado en fraccionamientos con seguridad.",
-      isQualified: true,
-    },
-  });
-
-  const lead2 = await prisma.lead.create({
-    data: {
-      agencyId: travelAgency.id,
-      phoneNumber: "5215559876543",
-      name: "María García",
-      aiSummary:
-        "Quiere un viaje romántico para aniversario. Presupuesto: 25-30k por persona. Prefiere playa. Fechas: diciembre.",
-    },
-  });
-
-  // ─── Create Mock Messages ─────────────────────────
-
-  await prisma.messageHistory.createMany({
-    data: [
-      {
-        leadId: lead1.id,
-        role: "USER",
-        content: "Hola, estoy buscando una casa en Monterrey",
-        createdAt: new Date("2026-08-07T10:00:00Z"),
-      },
-      {
-        leadId: lead1.id,
-        role: "ASSISTANT",
-        content:
-          "¡Hola Carlos! 👋 Bienvenido a Inmobiliaria Luna. Me da gusto ayudarte. ¿Podrías contarme un poco más sobre lo que buscas? Por ejemplo:\n\n• ¿Cuántas recámaras necesitas?\n• ¿Tienes alguna zona preferida en Monterrey?\n• ¿Cuál es tu presupuesto aproximado?",
-        createdAt: new Date("2026-08-07T10:00:05Z"),
-      },
-      {
-        leadId: lead1.id,
-        role: "USER",
-        content:
-          "Busco 3 o 4 recámaras, zona sur, mi presupuesto es de 4 a 6 millones",
-        createdAt: new Date("2026-08-07T10:01:00Z"),
-      },
-      {
-        leadId: lead1.id,
-        role: "ASSISTANT",
-        content:
-          "¡Excelente! Tengo opciones perfectas para ti. Te recomiendo especialmente:\n\n🏠 **Casa en Lomas Country** — 4 recámaras, jardín amplio, club deportivo. $5,800,000 MXN.\n\n🏠 **Casa en Valle Oriente** — 3 recámaras, acabados de lujo, seguridad 24/7. $4,500,000 MXN.\n\n¿Te gustaría agendar una visita a alguna de estas propiedades?",
-        createdAt: new Date("2026-08-07T10:01:08Z"),
-      },
-      {
-        leadId: lead2.id,
-        role: "USER",
-        content: "Hola! Quiero un viaje romántico para mi aniversario en diciembre",
-        createdAt: new Date("2026-08-08T14:00:00Z"),
-      },
-      {
-        leadId: lead2.id,
-        role: "ASSISTANT",
-        content:
-          "¡Hola María! 🎉 ¡Felicidades por su aniversario! Tengo opciones increíbles para una escapada romántica:\n\n💕 **Cancún Romántico** — 4 noches en hotel boutique adults-only. Cena en la playa, spa para parejas y paseo en catamarán. $22,000 por persona.\n\n🌴 **Riviera Maya All-Inclusive** — 5 noches en resort 5★ con todo incluido y vista al mar. $28,500 por persona.\n\n¿Cuál te llama más la atención? 😊",
-        createdAt: new Date("2026-08-08T14:00:07Z"),
-      },
-    ],
-  });
-
   console.log("✅ Seed completed!");
   console.log("📧 Users created:");
   console.log("   - admin@inmobiliarialuna.com / admin123 (Real Estate)");
@@ -324,7 +254,7 @@ Sé entusiasta, genera emoción por los destinos y personaliza cada recomendaci�
   console.log("   - superadmin@agentesia.com / superadmin123 (Super Admin)");
   console.log(`🏢 Agencies: ${realEstateAgency.name}, ${travelAgency.name}`);
   console.log(`📦 Catalog: ${realEstateItems.length + travelItems.length} items`);
-  console.log(`👤 Leads: 2 mock leads with message history`);
+  console.log("👤 Leads: real conversations will be created by OpenWA webhooks");
 }
 
 main()

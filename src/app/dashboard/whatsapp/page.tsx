@@ -8,6 +8,14 @@ interface WASession {
   status: string;
   qrCode: string | null;
   connectedAt: string | null;
+  agentId: string | null;
+  agentName: string | null;
+}
+
+interface Agent {
+  id: string;
+  name: string;
+  isActive: boolean;
 }
 
 export default function WhatsAppPage() {
@@ -15,6 +23,8 @@ export default function WhatsAppPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [isInitializing, setIsInitializing] = useState(true);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [selectedAgentId, setSelectedAgentId] = useState("");
 
   const checkStatus = useCallback(async () => {
     try {
@@ -35,6 +45,17 @@ export default function WhatsAppPage() {
     return () => window.clearTimeout(timer);
   }, [checkStatus]);
 
+  useEffect(() => {
+    fetch("/api/v1/agents")
+      .then((res) => res.json())
+      .then((data) => {
+        const activeAgents = (data.agents || []).filter((agent: Agent) => agent.isActive);
+        setAgents(activeAgents);
+        setSelectedAgentId((current) => current || activeAgents[0]?.id || "");
+      })
+      .catch(() => setAgents([]));
+  }, []);
+
   // Poll every 5 seconds if ANY session is PENDING
   useEffect(() => {
     const hasPending = sessions.some(s => s.status === "PENDING");
@@ -47,7 +68,11 @@ export default function WhatsAppPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/v1/whatsapp/connect", { method: "POST" });
+      const res = await fetch("/api/v1/whatsapp/connect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ agentId: selectedAgentId || null }),
+      });
       const data = await res.json();
 
       if (!res.ok) {
@@ -93,14 +118,30 @@ export default function WhatsAppPage() {
     <>
       <div className="page-header">
         <h2>WhatsApp ({activeSessions.length})</h2>
-        <button
-          className="btn btn-whatsapp"
-          onClick={handleConnect}
-          disabled={loading || activeSessions.some(s => s.status === "PENDING")}
-          style={{ padding: "8px 16px", borderRadius: "100px", fontWeight: 600 }}
-        >
-          {loading ? <span className="spinner" /> : "➕ Añadir Número"}
-        </button>
+        <div style={{ display: "flex", gap: "var(--space-sm)", alignItems: "center", flexWrap: "wrap" }}>
+          <select
+            className="input"
+            value={selectedAgentId}
+            onChange={(event) => setSelectedAgentId(event.target.value)}
+            style={{ minWidth: 220 }}
+            disabled={loading}
+          >
+            <option value="">Sin agente asignado</option>
+            {agents.map((agent) => (
+              <option key={agent.id} value={agent.id}>
+                {agent.name}
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn btn-whatsapp"
+            onClick={handleConnect}
+            disabled={loading || activeSessions.some(s => s.status === "PENDING")}
+            style={{ padding: "8px 16px", borderRadius: "100px", fontWeight: 600 }}
+          >
+            {loading ? <span className="spinner" /> : "➕ Añadir Número"}
+          </button>
+        </div>
       </div>
 
       <div className="page-body">
@@ -115,6 +156,20 @@ export default function WhatsAppPage() {
             <p style={{ color: "var(--text-secondary)", marginBottom: "var(--space-lg)" }}>
               Conecta uno o más números de WhatsApp para que tus agentes de IA atiendan a los clientes automáticamente.
             </p>
+            <select
+              className="input"
+              value={selectedAgentId}
+              onChange={(event) => setSelectedAgentId(event.target.value)}
+              style={{ maxWidth: 360, margin: "0 auto var(--space-md)" }}
+              disabled={loading}
+            >
+              <option value="">Sin agente asignado</option>
+              {agents.map((agent) => (
+                <option key={agent.id} value={agent.id}>
+                  {agent.name}
+                </option>
+              ))}
+            </select>
             <button
               className="btn btn-whatsapp btn-lg"
               onClick={handleConnect}
@@ -168,7 +223,7 @@ export default function WhatsAppPage() {
                     </h4>
                     <p style={{ fontSize: "0.875rem", color: "var(--text-secondary)", marginTop: "var(--space-sm)" }}>
                       {session.status === "CONNECTED"
-                        ? "Respondiendo mensajes automáticamente."
+                        ? `Atiende: ${session.agentName || "sin agente asignado"}`
                         : "La sesión está creada, pero aún falta mostrar el código QR."}
                     </p>
                     <div style={{ marginTop: "var(--space-md)", padding: "var(--space-xs)", background: "var(--bg-elevated)", borderRadius: 8 }}>

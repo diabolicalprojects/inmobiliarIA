@@ -2,6 +2,7 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import SendMessageForm from "./send-message-form";
 
 export default async function ConversationDetailPage({
   params,
@@ -20,10 +21,31 @@ export default async function ConversationDetailPage({
     },
     include: {
       messages: { orderBy: { createdAt: "asc" } },
+      whatsappSession: {
+        include: {
+          agent: { select: { name: true } },
+        },
+      },
     },
   });
 
   if (!lead) redirect("/dashboard/conversations");
+
+  const connectedSessions = await prisma.whatsappSession.findMany({
+    where: {
+      agencyId: session.user.agencyId,
+      status: "CONNECTED",
+    },
+    include: {
+      agent: { select: { name: true } },
+    },
+    orderBy: { connectedAt: "desc" },
+  });
+
+  const sessionOptions = connectedSessions.map((waSession) => ({
+    id: waSession.id,
+    label: `${waSession.agent?.name || "Sin agente"} · ${waSession.openwaSessionName.slice(0, 18)}...`,
+  }));
 
   return (
     <>
@@ -41,6 +63,7 @@ export default async function ConversationDetailPage({
             <p style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 1 }}>
               📞 {lead.phoneNumber}
               {lead.isQualified && " · ⭐ Calificado"}
+              {lead.whatsappSession && ` · ${lead.whatsappSession.agent?.name || "Sesión sin agente"}`}
             </p>
           </div>
         </div>
@@ -67,30 +90,40 @@ export default async function ConversationDetailPage({
         style={{
           height: "calc(100vh - var(--header-height))",
           background: "var(--bg-primary)",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
-        {lead.messages.length > 0 ? (
-          lead.messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`chat-bubble ${msg.role === "USER" ? "user" : "assistant"}`}
-            >
-              <div style={{ whiteSpace: "pre-wrap" }}>{msg.content}</div>
-              <div className="chat-time">
-                {msg.role === "ASSISTANT" && "🤖 "}
-                {new Date(msg.createdAt).toLocaleTimeString("es-MX", {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
+        <div style={{ flex: 1, overflowY: "auto", padding: "var(--space-lg)" }}>
+          {lead.messages.length > 0 ? (
+            lead.messages.map((msg) => (
+              <div
+                key={msg.id}
+                className={`chat-bubble ${msg.role === "USER" ? "user" : "assistant"}`}
+              >
+                <div style={{ whiteSpace: "pre-wrap" }}>{msg.content}</div>
+                <div className="chat-time">
+                  {msg.role === "ASSISTANT" && "🤖 "}
+                  {new Date(msg.createdAt).toLocaleTimeString("es-MX", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="empty-state">
+              <div className="empty-icon">💬</div>
+              <h3>Sin mensajes</h3>
             </div>
-          ))
-        ) : (
-          <div className="empty-state">
-            <div className="empty-icon">💬</div>
-            <h3>Sin mensajes</h3>
-          </div>
-        )}
+          )}
+        </div>
+
+        <SendMessageForm
+          leadId={lead.id}
+          defaultSessionId={lead.whatsappSessionId}
+          sessions={sessionOptions}
+        />
       </div>
     </>
   );

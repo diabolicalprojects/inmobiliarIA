@@ -14,6 +14,11 @@ export default async function ConversationsPage() {
     },
     include: {
       messages: { orderBy: { createdAt: "desc" }, take: 1 },
+      whatsappSession: {
+        include: {
+          agent: { select: { name: true } },
+        },
+      },
       _count: { select: { messages: true } },
     },
     orderBy: { updatedAt: "desc" },
@@ -87,6 +92,11 @@ export default async function ConversationsPage() {
                     {lead.messages[0]?.role === "ASSISTANT" && "🤖 "}
                     {lead.messages[0]?.content || "Sin mensajes"}
                   </div>
+                  {lead.whatsappSession && (
+                    <div style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: 4 }}>
+                      {lead.whatsappSession.agent?.name || "Sesión sin agente"}
+                    </div>
+                  )}
                 </div>
 
                 <div

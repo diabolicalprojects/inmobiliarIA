@@ -16,6 +16,7 @@ export async function GET() {
       whatsappSessions: {
         select: {
           id: true,
+          agentId: true,
           openwaSessionName: true,
           openwaSessionId: true,
           status: true,

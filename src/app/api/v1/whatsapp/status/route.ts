@@ -17,6 +17,14 @@ export async function GET(req: NextRequest) {
       agencyId: session.user.agencyId,
       ...(sessionId ? { id: sessionId } : {}),
     },
+    include: {
+      agent: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
     orderBy: { updatedAt: "desc" },
   });
 
@@ -46,6 +54,14 @@ export async function GET(req: NextRequest) {
               connectedAt: new Date(),
               updatedAt: new Date(),
             },
+            include: {
+              agent: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
           });
         } else if (qrCodeBase64 && waSession.qrCodeBase64 !== qrCodeBase64) {
           waSessions[i] = await prisma.whatsappSession.update({
@@ -54,6 +70,14 @@ export async function GET(req: NextRequest) {
               qrCodeBase64,
               updatedAt: new Date(),
             },
+            include: {
+              agent: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
           });
         } else if (openwaStatus.status === "unknown") {
           waSessions[i] = await prisma.whatsappSession.update({
@@ -61,6 +85,14 @@ export async function GET(req: NextRequest) {
             data: {
               status: "DISCONNECTED",
               updatedAt: new Date(),
+            },
+            include: {
+              agent: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
             },
           });
         }
@@ -75,6 +107,8 @@ export async function GET(req: NextRequest) {
       sessionId: s.id,
       sessionName: s.openwaSessionName,
       openwaSessionId: s.openwaSessionId,
+      agentId: s.agentId,
+      agentName: s.agent?.name || null,
       status: s.status,
       qrCode: s.status === "PENDING" ? s.qrCodeBase64 : null,
       connectedAt: s.connectedAt,

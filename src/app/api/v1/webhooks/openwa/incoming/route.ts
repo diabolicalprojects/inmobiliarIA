@@ -6,24 +6,35 @@ import redis from "@/lib/redis";
 import { runAIAgent } from "@/lib/ai";
 
 type IncomingMessageData = {
+  id?: string;
+  chatId?: string;
   from?: string;
   body?: string;
+  message?: string;
   text?: string;
   content?: string;
+  type?: string;
   sender?: {
     id?: string;
     pushname?: string;
+    name?: string;
   };
   _data?: {
     notifyName?: string;
+    body?: string;
+    from?: string;
   };
   notifyName?: string;
+  pushName?: string;
 };
 
 type OpenWAPayload = {
   sessionId?: string;
+  session_id?: string;
   session?: string;
+  event?: string;
   payload?: IncomingMessageData;
+  message?: IncomingMessageData;
   data?: IncomingMessageData;
 } & IncomingMessageData;
 
@@ -41,10 +52,19 @@ export async function POST(req: Request) {
   try {
     const payload = (await req.json()) as OpenWAPayload;
 
-    const sessionId = payload.sessionId || payload.session;
-    const messageData = payload.payload || payload.data || payload;
-    const fromNumber = messageData.from || messageData.sender?.id;
-    const messageBody = messageData.body || messageData.text || messageData.content;
+    const messageData = payload.payload || payload.data || payload.message || payload;
+    const sessionId = payload.sessionId || payload.session_id || payload.session;
+    const fromNumber =
+      messageData.from ||
+      messageData.chatId ||
+      messageData.sender?.id ||
+      messageData._data?.from;
+    const messageBody =
+      messageData.body ||
+      messageData.text ||
+      messageData.content ||
+      messageData.message ||
+      messageData._data?.body;
     const isGroupMessage = fromNumber?.includes("@g.us");
 
     if (!sessionId || !fromNumber || !messageBody || isGroupMessage) {
@@ -80,6 +100,7 @@ async function processMessageAsync(
       ],
     },
     include: {
+      agent: true,
       agency: {
         include: {
           agents: { where: { isActive: true }, take: 1 },
@@ -90,7 +111,7 @@ async function processMessageAsync(
 
   if (!waSession) return;
   const agency = waSession.agency;
-  const activeAgent = agency.agents[0];
+  const activeAgent = waSession.agent?.isActive ? waSession.agent : agency.agents[0];
   if (!activeAgent) return;
 
   // 2. Encontrar/Crear Lead
@@ -98,14 +119,20 @@ async function processMessageAsync(
     where: {
       agencyId_phoneNumber: { agencyId: agency.id, phoneNumber },
     },
-    update: { updatedAt: new Date() },
+    update: {
+      whatsappSessionId: waSession.id,
+      updatedAt: new Date(),
+    },
     create: {
       agencyId: agency.id,
+      whatsappSessionId: waSession.id,
       phoneNumber,
       name:
         messageData._data?.notifyName ||
         messageData.sender?.pushname ||
+        messageData.sender?.name ||
         messageData.notifyName ||
+        messageData.pushName ||
         "Lead de WhatsApp",
     },
   });

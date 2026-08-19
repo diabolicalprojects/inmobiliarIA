@@ -4,6 +4,11 @@ import { auth } from "@/lib/auth";
 import { getOpenWAClient } from "@/lib/openwa";
 import logger from "@/lib/utils/logger";
 import crypto from "crypto";
+import { z } from "zod/v4";
+
+const connectSchema = z.object({
+  agentId: z.string().uuid().nullable().optional(),
+});
 
 // POST /api/v1/whatsapp/connect — Start a session and get QR code
 export async function POST(req: NextRequest) {
@@ -16,6 +21,20 @@ export async function POST(req: NextRequest) {
   const sessionName = `ag-${crypto.randomUUID()}`;
 
   try {
+    const body = await req.json().catch(() => ({}));
+    const { agentId } = connectSchema.parse(body);
+
+    if (agentId) {
+      const agent = await prisma.agent.findFirst({
+        where: { id: agentId, agencyId, isActive: true },
+        select: { id: true },
+      });
+
+      if (!agent) {
+        return NextResponse.json({ error: "Agente no encontrado o inactivo" }, { status: 404 });
+      }
+    }
+
     // We no longer block if there's an active session, since we support multiple.
     // However, if there are pending sessions, it's fine, we just create a new one.
     
@@ -28,6 +47,7 @@ export async function POST(req: NextRequest) {
     const waSession = await prisma.whatsappSession.create({
       data: {
         agencyId,
+        agentId: agentId || null,
         openwaSessionName: sessionName,
         openwaSessionId: result.sessionId,
         status: isConnected ? "CONNECTED" : "PENDING",
@@ -55,10 +75,18 @@ export async function POST(req: NextRequest) {
       sessionId: waSession.id,
       sessionName: waSession.openwaSessionName,
       openwaSessionId: result.sessionId,
+      agentId: waSession.agentId,
       qrCode: waSession.qrCodeBase64,
       status: waSession.status,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: "Datos inválidos", details: error.issues },
+        { status: 400 }
+      );
+    }
+
     logger.error(
       `Failed to start session: ${error instanceof Error ? error.message : "Unknown"}`,
       "WhatsApp",

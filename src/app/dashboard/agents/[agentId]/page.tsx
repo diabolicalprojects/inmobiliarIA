@@ -10,6 +10,15 @@ interface Agent {
   description: string;
   systemPrompt: string;
   isActive: boolean;
+  whatsappSessionId: string;
+}
+
+interface WhatsappSession {
+  id: string;
+  sessionName: string;
+  status: string;
+  agentId: string | null;
+  agentName: string | null;
 }
 
 export default function AgentConfigPage({ params }: { params: Promise<{ agentId: string }> }) {
@@ -21,7 +30,9 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
     description: "",
     systemPrompt: "",
     isActive: true,
+    whatsappSessionId: "",
   });
+  const [sessions, setSessions] = useState<WhatsappSession[]>([]);
   
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -29,9 +40,12 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
   const [deleting, setDeleting] = useState(false);
   
   useEffect(() => {
-    fetch(`/api/v1/agents/${agentId}`)
-      .then((r) => r.json())
-      .then((data) => {
+    Promise.all([
+      fetch(`/api/v1/agents/${agentId}`).then((r) => r.json()),
+      fetch("/api/v1/whatsapp/status").then((r) => r.json()),
+    ])
+      .then(([data, sessionsData]) => {
+        setSessions(sessionsData.sessions || []);
         if (data.agent) {
           setForm({
             id: data.agent.id,
@@ -39,6 +53,7 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
             description: data.agent.description || "",
             systemPrompt: data.agent.systemPrompt || "",
             isActive: data.agent.isActive,
+            whatsappSessionId: data.agent.whatsappSessions?.[0]?.id || "",
           });
         }
       })
@@ -151,6 +166,27 @@ export default function AgentConfigPage({ params }: { params: Promise<{ agentId:
                   onChange={(e) => setForm({ ...form, description: e.target.value })}
                   placeholder="Ej: Se encarga de atender a nuevos clientes y perfilar..."
                 />
+              </div>
+
+              <div className="input-group" style={{ marginTop: "var(--space-md)" }}>
+                <label>Sesión WhatsApp asociada</label>
+                <select
+                  className="input"
+                  value={form.whatsappSessionId}
+                  onChange={(e) => setForm({ ...form, whatsappSessionId: e.target.value })}
+                >
+                  <option value="">Sin sesión asignada</option>
+                  {sessions.map((waSession) => (
+                    <option key={waSession.id} value={waSession.id}>
+                      {waSession.agentName && waSession.agentId !== form.id
+                        ? `${waSession.sessionName} · actualmente ${waSession.agentName}`
+                        : `${waSession.sessionName} · ${waSession.status}`}
+                    </option>
+                  ))}
+                </select>
+                <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", marginTop: "8px", display: "block" }}>
+                  Esta sesión define qué número de WhatsApp usará el agente para responder.
+                </span>
               </div>
             </div>
 

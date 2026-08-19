@@ -15,6 +15,12 @@ export async function GET(
 
   const agent = await prisma.agent.findFirst({
     where: { id: agentId, agencyId: session.user.agencyId },
+    include: {
+      whatsappSessions: {
+        select: { id: true, status: true, openwaSessionName: true },
+        orderBy: { updatedAt: "desc" },
+      },
+    },
   });
 
   if (!agent) {
@@ -29,6 +35,7 @@ const updateSchema = z.object({
   description: z.string().nullable().optional(),
   systemPrompt: z.string().nullable().optional(),
   isActive: z.boolean().optional(),
+  whatsappSessionId: z.string().uuid().nullable().optional(),
 });
 
 export async function PATCH(
@@ -44,17 +51,44 @@ export async function PATCH(
   try {
     const body = await req.json();
     const validated = updateSchema.parse(body);
+    const { whatsappSessionId, ...agentData } = validated;
 
     const agent = await prisma.agent.updateMany({
       where: { id: agentId, agencyId: session.user.agencyId },
-      data: validated,
+      data: agentData,
     });
 
     if (agent.count === 0) {
       return NextResponse.json({ error: "Agente no encontrado" }, { status: 404 });
     }
 
-    const updated = await prisma.agent.findUnique({ where: { id: agentId }});
+    if (whatsappSessionId !== undefined) {
+      await prisma.whatsappSession.updateMany({
+        where: { agentId, agencyId: session.user.agencyId },
+        data: { agentId: null },
+      });
+
+      if (whatsappSessionId) {
+        const waSession = await prisma.whatsappSession.updateMany({
+          where: { id: whatsappSessionId, agencyId: session.user.agencyId },
+          data: { agentId },
+        });
+
+        if (waSession.count === 0) {
+          return NextResponse.json({ error: "Sesión de WhatsApp no encontrada" }, { status: 404 });
+        }
+      }
+    }
+
+    const updated = await prisma.agent.findUnique({
+      where: { id: agentId },
+      include: {
+        whatsappSessions: {
+          select: { id: true, status: true, openwaSessionName: true },
+          orderBy: { updatedAt: "desc" },
+        },
+      },
+    });
     return NextResponse.json({ agent: updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
