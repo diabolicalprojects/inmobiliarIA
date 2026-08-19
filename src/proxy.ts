@@ -27,7 +27,9 @@ export default async function proxy(req: NextRequest) {
 
   const hasSessionCookie = req.cookies
     .getAll()
-    .some((cookie) => /(?:^|\.)(?:authjs|next-auth)\.session-token$/.test(cookie.name));
+    .some((cookie) =>
+      /^(?:__Secure-|__Host-)?(?:authjs|next-auth)\.session-token$/.test(cookie.name)
+    );
 
   // Check auth for dashboard routes
   if (!hasSessionCookie) {
