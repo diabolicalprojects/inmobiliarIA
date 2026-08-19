@@ -1,6 +1,5 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
 
 const publicPaths = [
   "/login",
@@ -26,16 +25,12 @@ export default async function proxy(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({
-    req,
-    secret:
-      process.env.AUTH_SECRET ||
-      process.env.NEXTAUTH_SECRET ||
-      "change-me-in-production-auth-secret-32-chars",
-  });
+  const hasSessionCookie = req.cookies
+    .getAll()
+    .some((cookie) => /(?:^|\.)(?:authjs|next-auth)\.session-token$/.test(cookie.name));
 
   // Check auth for dashboard routes
-  if (!token) {
+  if (!hasSessionCookie) {
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return Response.redirect(loginUrl);
