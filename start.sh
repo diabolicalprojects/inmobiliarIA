@@ -20,6 +20,10 @@ run_optional() {
 mkdir -p public
 echo "Starting deployment script..." > "$LOG_FILE"
 
+export AUTH_URL="${AUTH_URL:-https://agentesia.diabolicalservices.tech}"
+export NEXTAUTH_URL="${NEXTAUTH_URL:-https://agentesia.diabolicalservices.tech}"
+export AUTH_TRUST_HOST="${AUTH_TRUST_HOST:-true}"
+
 if [ -z "$DATABASE_URL" ]; then
   log "DATABASE_URL is not configured. Skipping database setup."
 else

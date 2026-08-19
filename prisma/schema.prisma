@@ -85,7 +85,7 @@ model WhatsappSession {
   id                String        @id @default(uuid())
   agencyId          String        @map("agency_id")
   openwaSessionName String        @unique @map("openwa_session_name") @db.VarChar(255)
-  openwaSessionId   String?       @unique @map("openwa_session_id") @db.VarChar(255)
+  openwaSessionId   String?       @map("openwa_session_id") @db.VarChar(255)
   status            SessionStatus @default(PENDING)
   qrCodeBase64      String?       @map("qr_code_base64") @db.Text
   connectedAt       DateTime?     @map("connected_at")
@@ -95,6 +95,7 @@ model WhatsappSession {
   agency Agency @relation(fields: [agencyId], references: [id], onDelete: Cascade)
 
   @@index([agencyId])
+  @@index([openwaSessionId])
   @@map("whatsapp_sessions")
 }
 
