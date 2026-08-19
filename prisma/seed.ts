@@ -9,6 +9,14 @@ async function main() {
   });
 
   if (existingAdmin) {
+    await prisma.lead.deleteMany({
+      where: {
+        OR: [
+          { phoneNumber: "5215551234567", name: "Carlos Mendoza" },
+          { phoneNumber: "5215559876543", name: "María García" },
+        ],
+      },
+    });
     console.log("✅ Database already seeded. Skipping...");
     return;
   }
