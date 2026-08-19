@@ -18,11 +18,17 @@ COPY . .
 
 # Build Next.js app
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV AUTH_URL=https://agentesia.diabolicalservices.tech
+ENV NEXTAUTH_URL=https://agentesia.diabolicalservices.tech
+ENV AUTH_TRUST_HOST=true
 RUN pnpm run build
 
 # Start configuration
 ENV NODE_ENV=production
 ENV PORT=3000
+ENV AUTH_URL=https://agentesia.diabolicalservices.tech
+ENV NEXTAUTH_URL=https://agentesia.diabolicalservices.tech
+ENV AUTH_TRUST_HOST=true
 EXPOSE 3000
 
 # Copy startup script
