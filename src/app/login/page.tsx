@@ -27,7 +27,12 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Email o contraseña incorrectos");
       } else {
-        router.push("/dashboard");
+        const callbackUrl = new URLSearchParams(window.location.search).get("callbackUrl");
+        const target =
+          callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+            ? callbackUrl
+            : "/dashboard";
+        router.push(target);
         router.refresh();
       }
     } catch {

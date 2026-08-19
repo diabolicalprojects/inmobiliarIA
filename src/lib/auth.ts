@@ -56,12 +56,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         if (!isValid) return null;
 
+        let agencyId = user.agencyId;
+        if (!agencyId && user.role === "SUPER_ADMIN") {
+          const firstAgency = await prisma.agency.findFirst({
+            orderBy: { createdAt: "asc" },
+            select: { id: true },
+          });
+          agencyId = firstAgency?.id ?? null;
+        }
+
         return {
           id: user.id,
           email: user.email,
           name: user.name,
           role: user.role,
-          agencyId: user.agencyId,
+          agencyId,
         };
       },
     }),
