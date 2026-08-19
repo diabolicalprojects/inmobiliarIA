@@ -1,16 +1,31 @@
 #!/bin/sh
-set -e
 
-echo "Starting deployment script..." > public/startup.log
+LOG_FILE="public/startup.log"
 
-echo "Running prisma db push..." >> public/startup.log
-npx prisma db push >> public/startup.log 2>&1
+log() {
+  echo "$1"
+  echo "$1" >> "$LOG_FILE"
+}
 
-echo "Running seed script..." >> public/startup.log
-npx tsx prisma/seed.ts >> public/startup.log 2>&1
+run_optional() {
+  log "$1"
+  shift
+  "$@" >> "$LOG_FILE" 2>&1
+  exit_code=$?
+  if [ "$exit_code" -ne 0 ]; then
+    log "Step failed with exit code $exit_code, continuing startup."
+  fi
+}
 
-echo "Starting Next.js..." >> public/startup.log
-HOSTNAME="0.0.0.0" npm run start >> public/startup.log 2>&1
+mkdir -p public
+echo "Starting deployment script..." > "$LOG_FILE"
 
-echo "Next.js crashed with exit code $?. Serving logs on port 3000..." >> public/startup.log
-npx serve -l tcp://0.0.0.0:3000 public
+if [ -z "$DATABASE_URL" ]; then
+  log "DATABASE_URL is not configured. Skipping database setup."
+else
+  run_optional "Running prisma db push..." npx prisma db push
+  run_optional "Running seed script..." npx tsx prisma/seed.ts
+fi
+
+log "Starting Next.js..."
+HOSTNAME="0.0.0.0" exec npm run start
